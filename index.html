@@ -183,6 +183,39 @@ function cartaoTabela(v){
     <p class="warn">Valores referenciais da planilha. Quando diferirem do "Tecfil ao vivo", vale o catálogo ao vivo. Confirme sempre no manual.</p></div>`;
 }
 
+// ---- Óleo do motor + TODOS os filtros (fontes: Tecfil ao vivo > tabela PDF > data.js)
+function tabCods(rot, cods){ return `<tr><td>${esc(rot)}</td><td class="cod">${esc(cods)} ${cods && !/^Não/.test(cods) ? `<button class="copy" data-c="${esc(cods)}">copiar</button>` : ""}</td></tr>`; }
+function cartaoOleoFiltros(d, erro, v, veic0, peca){
+  const tab = achaTabela(v)[0], loc = achaAplicacao(peca, v)[0];
+  const g = t => `<a target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(t)}" style="color:var(--pri);font-size:.8rem">🔎 Google</a>`;
+  const vn = `${v.marca} ${v.modelo} ${v.ano||""}`.trim();
+  // 1) óleo
+  let oleo = "";
+  if(tab) oleo = `<tr><td><b>${esc(tab.visc)}</b></td><td>—</td><td><b>${esc(tab.litros)} L</b> (com filtro)</td></tr><tr><td colspan="3" class="sub" style="font-size:.8rem">Fonte: tabela consolidada — ${esc(tab.veiculo)} · ${esc(tab.motor)}</td></tr>`;
+  else if(loc) oleo = `<tr><td><b>${esc(loc.oleo.viscosidade)}</b></td><td>${esc(loc.oleo.norma)}</td><td><b>${esc(loc.oleo.litros)}</b></td></tr>`;
+  const blocoOleo = oleo ? `<table><tr><th>Viscosidade</th><th>Norma</th><th>Quantidade</th></tr>${oleo}</table>` : `<p class="warn">Óleo de fábrica e quantidade não cadastrados para este veículo. ${g(`óleo original de fábrica quantidade litros ${vn}`)}</p>`;
+  // 2) filtros
+  let filtros = "", fonte = "";
+  if(d && d.r && d.r.length){
+    fonte = "catálogo oficial Tecfil (ao vivo)";
+    filtros = d.r.map(x => `<div style="margin-bottom:14px"><b>${esc(x.fabricante)}</b> · ${esc(x.aplicacao)}<table><tr><th>Filtro</th><th>Código Tecfil</th></tr>${Object.entries(x.filtros).map(([k,c]) => tabCods(k, c.join(" · "))).join("")}</table></div>`).join("");
+  } else if(tab){
+    fonte = "tabela consolidada (referencial)";
+    filtros = `<table><tr><th>Filtro</th><th>Código Tecfil</th></tr>${tabCods("Óleo", tab.oleo)}${tabCods("Ar do motor", tab.ar)}${tabCods("Combustível", tab.comb)}${tabCods("Ar-condicionado (cabine)", tab.cabine)}</table>`;
+  } else if(loc){
+    fonte = "base local (data.js)";
+    filtros = `<table><tr><th>Filtro</th><th>Código Tecfil</th></tr>${Object.entries(loc.filtros).map(([k,c]) => tabCods(k, c)).join("")}</table>`;
+  }
+  const aviso = d && d.indisponivel ? `<p class="warn">Ponte da Tecfil não configurada, então os filtros vêm da ${tab ? "tabela consolidada" : "base local"}. Configure a ponte para ver todos os filtros do catálogo oficial.</p>`
+    : erro ? `<p class="warn">Falha ao consultar a Tecfil (${esc(erro)}); usando ${fonte || "nenhuma fonte"}.</p>`
+    : d && d.r && !d.r.length ? `<p class="warn">A Tecfil não achou "${esc(d.modelo)}". Tente simplificar o modelo (ex.: "Gol 1.6").</p>` : "";
+  const q = encodeURIComponent(veic0.replace(/\./g,"<DOT>"));
+  return `<div class="card"><h3 style="margin-top:0">Óleo do motor – original de fábrica</h3>${blocoOleo}
+    <h3>Todos os filtros ${fonte ? `<span class="tag">${esc(fonte)}</span>` : ""}</h3>${filtros || '<p class="warn">Nenhum filtro encontrado para este veículo.</p>'}${aviso}
+    <p class="warn">Confirme óleo e quantidade no manual do proprietário; o código do filtro pode variar com motor e ano.</p>
+    <div class="links"><a target="_blank" rel="noopener" href="https://catalogo.tecfil.com.br/search/${q}">Abrir no catálogo Tecfil ↗</a><a target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent("óleo e filtros "+vn)}">Google</a></div></div>`;
+}
+
 // ---- busca
 function achaPeca(txt){
   const q = norm(txt); if(!q) return [];
@@ -233,12 +266,16 @@ $("#f").addEventListener("submit", async e => {
   const pecas = achaPeca(txt);
   const veic0 = `${veiculo.modelo} ${veiculo.ano||""}`.trim();
   const filtroOuOleo = /FILTR|OLEO|LUBRIF|COMBUST|CABINE|AR /.test(norm(txt)+" ");
-  let vivo = "";
+  let vivo = "", dados = null, erroVivo = "";
+  const pedeOleo = pecas.some(p => p.id === "oleo-motor");
   if(filtroOuOleo || !pecas.length){
     $("#res").innerHTML = '<div class="card">Consultando catálogo Tecfil…</div>';
-    try { vivo = cartaoTecfil(await tecfilVivo(veiculo), veic0); }
-    catch(err){ vivo = `<div class="card"><p class="warn">Falha ao consultar a Tecfil: ${esc(err.message)}</p></div>`; }
-    $("#res").innerHTML = vivo + cartaoTabela(veiculo);
+    try { dados = await tecfilVivo(veiculo); vivo = cartaoTecfil(dados, veic0); }
+    catch(err){ erroVivo = err.message; vivo = `<div class="card"><p class="warn">Falha ao consultar a Tecfil: ${esc(erroVivo)}</p></div>`; }
+    if(!pedeOleo) $("#res").innerHTML = vivo + cartaoTabela(veiculo);
+  }
+  if(pedeOleo){
+    return $("#res").innerHTML = cartaoOleoFiltros(dados, erroVivo, veiculo, veic0, pecas.find(p => p.id === "oleo-motor"));
   }
   vivo += filtroOuOleo ? cartaoTabela(veiculo) : "";
   if(!pecas.length) return $("#res").innerHTML = vivo || `<div class="card">Peça não encontrada na base.</div>`;
