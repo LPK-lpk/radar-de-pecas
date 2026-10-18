@@ -43,26 +43,26 @@
   <p class="sub">Digite a placa e a peça: veja os códigos equivalentes das marcas mais usadas.</p>
 
   <div class="card">
-    <form id="f">
-      <div><label for="placa">Placa</label><input id="placa" maxlength="8" placeholder="ABC1D23" autocomplete="off"></div>
-      <div><label for="peca">Peça</label><input id="peca" list="lista" placeholder="Ex.: filtro de óleo" autocomplete="off"><datalist id="lista"></datalist></div>
+    <h3 style="margin:0 0 4px">1. Veículo</h3>
+    <label>Escolha na tabela FIPE</label>
+    <div class="manual" style="margin-top:0">
+      <select id="mMarca"><option value="">Marca</option></select>
+      <select id="mModelo" disabled><option value="">Modelo</option></select>
+      <select id="mAno" disabled><option value="">Ano</option></select>
+    </div>
+    <label style="margin-top:12px">…ou digite (ex.: Volkswagen · Gol 1.6 · 2014)</label>
+    <div class="manual" style="margin-top:0"><input id="tMarca" placeholder="Marca"><input id="tModelo" placeholder="Modelo"><input id="tAno" type="number" placeholder="Ano"></div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px 14px;align-items:end;margin-top:12px">
+      <div style="width:170px"><label for="placa">Placa (opcional)</label><input id="placa" maxlength="8" placeholder="ABC1D23" autocomplete="off"></div>
+      <a id="bp" class="links" target="_blank" rel="noopener" href="https://buscaplacas.com.br/" style="color:var(--pri);font-size:.9rem;padding-bottom:10px">🔎 Descobrir o veículo da placa no Busca Placas ↗</a>
+    </div>
+    <h3 style="margin:18px 0 8px">2. Peça</h3>
+    <form id="f" style="grid-template-columns:1fr auto">
+      <div><input id="peca" list="lista" placeholder="Ex.: óleo do motor, filtro de ar, amortecedores" autocomplete="off" aria-label="Peça"><datalist id="lista"></datalist></div>
       <div style="display:flex;gap:8px"><button type="submit">Buscar</button><button type="button" class="sec" id="limpar">Limpar</button></div>
     </form>
-    <div style="margin-top:14px">
-      <a id="bp" class="links" target="_blank" rel="noopener" href="https://buscaplacas.com.br/" style="color:var(--pri);font-size:.9rem">🔎 Consultar esta placa no Busca Placas ↗</a>
-      <p class="sub" style="font-size:.8rem;margin:4px 0 8px">Abre o site em outra aba. Depois digite aqui o que ele mostrou (ou escolha pela FIPE abaixo):</p>
-      <div class="manual"><input id="tMarca" placeholder="Marca (ex.: Volkswagen)"><input id="tModelo" placeholder="Modelo (ex.: Gol 1.6)"><input id="tAno" type="number" placeholder="Ano (ex.: 2014)"></div>
-    </div>
     <details style="margin-top:14px">
-      <summary>Sem consulta de placa? Escolher o veículo manualmente (FIPE)</summary>
-      <div class="manual">
-        <select id="mMarca"><option value="">Marca</option></select>
-        <select id="mModelo" disabled><option value="">Modelo</option></select>
-        <select id="mAno" disabled><option value="">Ano</option></select>
-      </div>
-    </details>
-    <details style="margin-top:10px">
-      <summary>Configurar API de consulta de placa</summary>
+      <summary>Configurações avançadas (ponte Tecfil e API de placa)</summary>
       <label for="ponte" style="margin-top:8px">Endereço da ponte Tecfil (vazio = usa <code>/api/tecfil</code> do servidor local)</label>
       <div style="display:flex;gap:8px;margin-bottom:8px"><input id="ponte" placeholder="https://radar-tecfil.SEU.workers.dev/"></div>
       <p class="warn">Placa → veículo exige um serviço pago/com token. Informe o endpoint com <code>{placa}</code> (ex.: <code>https://wdapi2.com.br/consulta/{placa}/SEU_TOKEN</code>). Fica salvo só no seu navegador.</p>
@@ -132,7 +132,7 @@ $("#mAno").onchange = () => {
   if(!$("#mAno").value) return;
   const t = s => s.options[s.selectedIndex].text;
   veiculo = { marca: t($("#mMarca")), modelo: t($("#mModelo")), ano: parseInt(t($("#mAno")),10) || null };
-  $("#placa").value = "";
+  ["#tMarca","#tModelo","#tAno"].forEach(x => $(x).value = "");
   msg("Veículo escolhido manualmente. Informe a peça e clique em Buscar.");
 };
 
@@ -147,9 +147,12 @@ async function tecfilVivo(v){
     const sep = base.includes("?") ? "&" : "?";
     const tenta = async q => { const r = await fetch(`${base}${sep}q=${encodeURIComponent(q)}`); if(!r.ok) throw new Error("ponte "+r.status); return r.json(); };
     try{
-      let r = await tenta(modelo);
-      if(!r.length && v.marca) r = await tenta(`${v.marca} ${modelo}`);
-      return {r, modelo};
+      // nomes longos da FIPE ("SPACEFOX 1.6 Trendline I MOT. T.Flex 8V") não casam: tenta versões mais curtas
+      const base = v.modelo.split(/\s+/)[0];
+      const desloc = (v.modelo.match(/\d\.\d/)||[""])[0];
+      const tentativas = [...new Set([modelo, `${base} ${desloc} ${v.ano||""}`.replace(/\s+/g," ").trim(), `${base} ${v.ano||""}`.trim(), base])];
+      for(const t of tentativas){ const r = await tenta(t); if(r.length) return {r, modelo: t}; }
+      return {r: [], modelo};
     }catch(e){ if(configurada) throw e; }
   }
   return {indisponivel:true};
@@ -274,8 +277,8 @@ $("#f").addEventListener("submit", async e => {
   const manual = $("#tMarca").value.trim() || $("#tModelo").value.trim();
   const faltas = [], campos = [];
   if(!txt.trim()){ faltas.push("a peça (ex.: óleo do motor, filtro de ar)"); campos.push("#peca"); }
-  if(!manual && !placa && !veiculo){ faltas.push("a placa ou o modelo do veículo (marca/modelo/ano)"); campos.push("#placa","#tModelo"); }
-  else if(!manual && placa && !placaOk(placa)){ faltas.push("uma placa válida (ABC1234 ou ABC1D23)"); campos.push("#placa"); }
+  if(!manual && !placa && !veiculo){ faltas.push("o veículo (escolha na tabela FIPE ou digite marca, modelo e ano)"); campos.push("#mMarca","#tModelo"); }
+  else if(!manual && !veiculo && placa && !placaOk(placa)){ faltas.push("uma placa válida (ABC1234 ou ABC1D23)"); campos.push("#placa"); }
   if(faltas.length){
     campos.forEach(s => $(s).classList.add("invalido"));
     $(campos[0]).focus();
@@ -285,7 +288,7 @@ $("#f").addEventListener("submit", async e => {
     let marca = $("#tMarca").value.trim(), modelo = $("#tModelo").value.trim();
     if(!modelo){ modelo = marca; marca = ""; } // só um campo preenchido: trata como modelo (ex.: "Spacefox")
     veiculo = { marca, modelo, ano: parseInt($("#tAno").value,10) || null };
-  } else if(placa){
+  } else if(placa && !veiculo){
     if(!placaOk(placa)) return msg("Placa inválida. Use ABC1234 ou ABC1D23.");
     try{
       const v = await consultaPlaca(placa);
@@ -293,8 +296,8 @@ $("#f").addEventListener("submit", async e => {
         ["#tMarca","#tModelo","#tAno"].forEach(s => $(s).classList.add("invalido"));
         $("#bp").href = "https://buscaplacas.com.br/?plate=" + placa;
         $("#bp").scrollIntoView({block:"center"});
-        $("#tModelo").focus();
-        return msg(`⚠️ A placa ${placa} não vira veículo sem uma API de placas (serviço pago). Passo a passo: 1) clique em "Consultar esta placa no Busca Placas" e veja marca/modelo/ano; 2) preencha os 3 campos abaixo (ou use a seleção FIPE); 3) clique em Buscar de novo.`);
+        $("#mMarca").focus();
+        return msg(`⚠️ A placa ${placa} não vira veículo sem uma API de placas (serviço pago). Passo a passo: 1) clique em "Consultar esta placa no Busca Placas" e veja marca/modelo/ano; 2) escolha o veículo na FIPE ou preencha marca/modelo/ano (acima); 3) clique em Buscar de novo.`);
       }
       veiculo = v;
     }catch(err){ return msg("Falha na consulta da placa: "+err.message+". Use a seleção manual."); }
@@ -302,7 +305,7 @@ $("#f").addEventListener("submit", async e => {
   if(!veiculo) return msg("Informe a placa ou escolha o veículo manualmente.");
 
   $("#veiculo").classList.remove("hidden");
-  $("#veiculo").innerHTML = `<div class="veh"><b>${esc(veiculo.marca)} ${esc(veiculo.modelo)}</b>${veiculo.ano?`<span class="tag">${veiculo.ano}</span>`:""}${placa?`<span class="tag">${placa}</span>`:""}</div>`;
+  $("#veiculo").innerHTML = `<div class="veh"><b>${esc(veiculo.marca)} ${esc(veiculo.modelo)}</b>${veiculo.ano?`<span class="tag">${veiculo.ano}</span>`:""}${placaOk(placa)?`<span class="tag">${placa}</span>`:""}</div>`;
 
   if(/AMORTEC|BATENTE|GUARDA PO|COXIM/.test(norm(txt))) return $("#res").innerHTML = cartaoAmortecedores(veiculo);
   const pecas = achaPeca(txt);

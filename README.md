@@ -27,3 +27,8 @@ O site da Tecfil não permite leitura direta pelo navegador (CORS), então há u
 - **Online (GitHub Pages):** publique `worker.js` + `tecfil.mjs` num Cloudflare Worker (`npx wrangler deploy worker.js --name radar-tecfil`) e cole a URL em *Configurar API → Endereço da ponte*.
 
 Sem ponte, o painel usa a base local de `data.js`.
+
+## Como usar (sem API de placa)
+1. **Veículo:** escolha na tabela FIPE (marca → modelo → ano) ou digite marca, modelo e ano.
+2. **Peça:** ex. "óleo do motor", "filtro de ar", "amortecedores".
+3. A placa é opcional: o link ao lado abre o Busca Placas para você descobrir o veículo.
