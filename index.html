@@ -74,6 +74,7 @@
   <p class="sub" style="font-size:.8rem">⚠️ Códigos de referência cruzada são auxiliares. Confirme sempre no catálogo do fabricante (ou pelo chassi) antes de comprar.</p>
 </main>
 <script src="data.js"></script>
+<script src="tabela.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const norm = s => (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().trim();
@@ -153,6 +154,33 @@ function cartaoTecfil(d, veic){
   return `<div class="card"><h3 style="margin-top:0">Tecfil ao vivo <span class="tag">catálogo oficial</span></h3>${blocos}${link}</div>`;
 }
 
+// ---- Tabela consolidada (PDF): óleo, litros e filtros por motor/ano
+const ALIAS = { VOLKSWAGEN:"VW", GM:"CHEVROLET", "GENERAL MOTORS":"CHEVROLET", MERCEDES:"MERCEDES-BENZ" };
+function achaTabela(v){
+  const modelo = norm(v.modelo).replace(/!/g,""), marca0 = norm(v.marca), marca = ALIAS[marca0] || marca0;
+  const desloc = (modelo.match(/\d\.\d/) || [])[0];
+  let r = (window.TABELA||[]).filter(t => {
+    const m = t.veiculo.match(/^([A-Z-]+)\s+(.*)$/); if(!m) return false;
+    if(marca && !marca.includes(m[1]) && !m[1].includes(marca)) return false;
+    if(!m[2].split("/").some(x => { const n = norm(x).replace(/!/g,"").trim(); return n && modelo.includes(n); })) return false;
+    const a = t.motor.match(/\((\d{4})(?:-(\d{4})|\+)\)/);
+    if(a && v.ano && !(v.ano >= +a[1] && v.ano <= (+a[2] || 9999))) return false;
+    return true;
+  });
+  if(desloc){ const f = r.filter(t => t.motor.includes(desloc)); if(f.length) r = f; }
+  return r;
+}
+function cartaoTabela(v){
+  const r = achaTabela(v);
+  if(!r.length) return "";
+  const lin = r.map(t => `<tr><td><b>${esc(t.veiculo)}</b><br><span class="tag">${esc(t.motor)}</span></td>
+    <td><b>${esc(t.litros)} L</b><br>${esc(t.visc)}</td>
+    <td class="cod">Óleo ${esc(t.oleo)}<br>Ar ${esc(t.ar)}<br>Comb. ${esc(t.comb)}<br>Cabine ${esc(t.cabine)}</td></tr>`).join("");
+  return `<div class="card"><h3 style="margin-top:0">Tabela consolidada Tecfil <span class="tag">PDF</span></h3>
+    <table><tr><th>Veículo / motor</th><th>Óleo (qtd e viscosidade)</th><th>Filtros Tecfil</th></tr>${lin}</table>
+    <p class="warn">Valores referenciais da planilha. Quando diferirem do "Tecfil ao vivo", vale o catálogo ao vivo. Confirme sempre no manual.</p></div>`;
+}
+
 // ---- busca
 function achaPeca(txt){
   const q = norm(txt); if(!q) return [];
@@ -196,8 +224,9 @@ $("#f").addEventListener("submit", async e => {
     $("#res").innerHTML = '<div class="card">Consultando catálogo Tecfil…</div>';
     try { vivo = cartaoTecfil(await tecfilVivo(veiculo), veic0); }
     catch(err){ vivo = `<div class="card"><p class="warn">Falha ao consultar a Tecfil: ${esc(err.message)}</p></div>`; }
-    $("#res").innerHTML = vivo;
+    $("#res").innerHTML = vivo + cartaoTabela(veiculo);
   }
+  vivo += filtroOuOleo ? cartaoTabela(veiculo) : "";
   if(!pecas.length) return $("#res").innerHTML = vivo || `<div class="card">Peça não encontrada na base.</div>`;
   if(false) return $("#res").innerHTML = `<div class="card">Peça não encontrada na base. Disponíveis: ${PECAS.map(p=>esc(p.nome)).join(", ")}.</div>`;
   $("#res").innerHTML = vivo + pecas.map(p => {
