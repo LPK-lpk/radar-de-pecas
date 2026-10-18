@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radar Peças - Busca por placa</title>
+<style>
+  :root{--bg:#f5f6f8;--card:#fff;--tx:#1b1f27;--mut:#667085;--pri:#0b5fff;--bd:#e3e6ec;--ok:#067647;--warn:#b54708}
+  @media(prefers-color-scheme:dark){:root{--bg:#0f1218;--card:#181c25;--tx:#e8eaf0;--mut:#9aa3b2;--bd:#2a3040;--pri:#5b8cff}}
+  *{box-sizing:border-box}
+  body{margin:0;font:16px/1.5 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+  main{max-width:880px;margin:0 auto;padding:24px 16px 64px}
+  h1{font-size:1.5rem;margin:0 0 4px}
+  .sub{color:var(--mut);margin:0 0 20px}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px}
+  form{display:grid;grid-template-columns:200px 1fr auto;gap:12px;align-items:end}
+  label{display:block;font-size:.8rem;color:var(--mut);margin-bottom:4px}
+  input,select,button{font:inherit;padding:10px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);width:100%}
+  #placa{text-transform:uppercase;letter-spacing:2px;font-weight:700;text-align:center}
+  button{background:var(--pri);color:#fff;border:0;font-weight:600;cursor:pointer;width:auto;padding:10px 22px}
+  button.sec{background:transparent;color:var(--pri);border:1px solid var(--pri)}
+  .veh{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
+  .veh b{font-size:1.1rem}
+  .tag{font-size:.75rem;padding:2px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--bd);color:var(--mut)}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--bd)}
+  th{font-size:.75rem;text-transform:uppercase;color:var(--mut)}
+  td.cod{font-family:ui-monospace,Consolas,monospace;font-weight:600}
+  .copy{cursor:pointer;color:var(--pri);font-size:.8rem;border:0;background:none;padding:0}
+  .warn{color:var(--warn);font-size:.85rem}
+  .links a{margin-right:12px;font-size:.85rem;color:var(--pri)}
+  details summary{cursor:pointer;color:var(--mut)}
+  .manual{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+  .hidden{display:none}
+  @media(max-width:640px){form{grid-template-columns:1fr}.manual{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+  <h1>🔧 Radar Peças</h1>
+  <p class="sub">Digite a placa e a peça: veja os códigos equivalentes das marcas mais usadas.</p>
+
+  <div class="card">
+    <form id="f">
+      <div><label for="placa">Placa</label><input id="placa" maxlength="8" placeholder="ABC1D23" autocomplete="off"></div>
+      <div><label for="peca">Peça</label><input id="peca" list="lista" placeholder="Ex.: filtro de óleo" autocomplete="off"><datalist id="lista"></datalist></div>
+      <button type="submit">Buscar</button>
+    </form>
+    <div style="margin-top:14px">
+      <a id="bp" class="links" target="_blank" rel="noopener" href="https://buscaplacas.com.br/" style="color:var(--pri);font-size:.9rem">🔎 Consultar esta placa no Busca Placas ↗</a>
+      <p class="sub" style="font-size:.8rem;margin:4px 0 8px">Abre o site em outra aba. Depois digite aqui o que ele mostrou (ou escolha pela FIPE abaixo):</p>
+      <div class="manual"><input id="tMarca" placeholder="Marca (ex.: Volkswagen)"><input id="tModelo" placeholder="Modelo (ex.: Gol 1.6)"><input id="tAno" type="number" placeholder="Ano (ex.: 2014)"></div>
+    </div>
+    <details style="margin-top:14px">
+      <summary>Sem consulta de placa? Escolher o veículo manualmente (FIPE)</summary>
+      <div class="manual">
+        <select id="mMarca"><option value="">Marca</option></select>
+        <select id="mModelo" disabled><option value="">Modelo</option></select>
+        <select id="mAno" disabled><option value="">Ano</option></select>
+      </div>
+    </details>
+    <details style="margin-top:10px">
+      <summary>Configurar API de consulta de placa</summary>
+      <label for="ponte" style="margin-top:8px">Endereço da ponte Tecfil (vazio = usa <code>/api/tecfil</code> do servidor local)</label>
+      <div style="display:flex;gap:8px;margin-bottom:8px"><input id="ponte" placeholder="https://radar-tecfil.SEU.workers.dev/"></div>
+      <p class="warn">Placa → veículo exige um serviço pago/com token. Informe o endpoint com <code>{placa}</code> (ex.: <code>https://wdapi2.com.br/consulta/{placa}/SEU_TOKEN</code>). Fica salvo só no seu navegador.</p>
+      <div style="display:flex;gap:8px"><input id="apiUrl" placeholder="https://.../{placa}/TOKEN"><button type="button" class="sec" id="salvaApi">Salvar</button></div>
+    </details>
+  </div>
+
+  <div id="msg" class="warn"></div>
+  <div id="veiculo" class="card hidden"></div>
+  <div id="res"></div>
+  <p class="sub" style="font-size:.8rem">⚠️ Códigos de referência cruzada são auxiliares. Confirme sempre no catálogo do fabricante (ou pelo chassi) antes de comprar.</p>
+</main>
+<script src="data.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const norm = s => (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().trim();
+let veiculo = null; // {marca, modelo, ano}
+
+// ---- peças (autocompletar)
+$("#lista").innerHTML = PECAS.map(p=>`<option value="${p.nome}">`).join("");
+
+// ---- config API
+$("#apiUrl").value = localStorage.getItem("apiPlaca") || "";
+$("#ponte").value = localStorage.getItem("ponteTecfil") || "";
+$("#salvaApi").onclick = () => { localStorage.setItem("ponteTecfil", $("#ponte").value.trim()); localStorage.setItem("apiPlaca", $("#apiUrl").value.trim()); msg("Configuração salva."); };
+function msg(t){ $("#msg").textContent = t||""; }
+
+// ---- placa
+const placaOk = p => /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(p);
+$("#placa").addEventListener("input", e => {
+  e.target.value = e.target.value.replace(/[^a-zA-Z0-9]/g,"").toUpperCase();
+  $("#bp").href = "https://buscaplacas.com.br/" + (placaOk(e.target.value) ? "?plate=" + e.target.value : "");
+});
+
+async function consultaPlaca(placa){
+  const tpl = localStorage.getItem("apiPlaca");
+  if(!tpl) return null;
+  const r = await fetch(tpl.replace("{placa}", placa));
+  if(!r.ok) throw new Error("API retornou "+r.status);
+  const j = await r.json();
+  const pick = (...k) => { for(const x of k){ const v = j[x] ?? j[x.toUpperCase()] ?? j.extra?.[x]; if(v) return String(v); } return ""; };
+  const marca = pick("marca","MARCA"), modelo = pick("modelo","MODELO","submodelo","SUBMODELO");
+  const ano = parseInt(pick("anoModelo","ano_modelo","ano","ANO"),10) || null;
+  if(!marca && !modelo) throw new Error("Resposta sem marca/modelo");
+  return {marca, modelo, ano};
+}
+
+// ---- FIPE manual
+const FIPE = "https://parallelum.com.br/fipe/api/v1/carros";
+const fj = u => fetch(u).then(r=>r.json());
+fj(FIPE+"/marcas").then(m=>{ $("#mMarca").innerHTML += m.map(x=>`<option value="${x.codigo}">${x.nome}</option>`).join(""); }).catch(()=>{});
+$("#mMarca").onchange = async e => {
+  $("#mModelo").disabled = !e.target.value; $("#mAno").disabled = true;
+  if(!e.target.value) return;
+  const d = await fj(`${FIPE}/marcas/${e.target.value}/modelos`);
+  $("#mModelo").innerHTML = '<option value="">Modelo</option>' + d.modelos.map(x=>`<option value="${x.codigo}">${x.nome}</option>`).join("");
+};
+$("#mModelo").onchange = async e => {
+  $("#mAno").disabled = !e.target.value;
+  if(!e.target.value) return;
+  const d = await fj(`${FIPE}/marcas/${$("#mMarca").value}/modelos/${e.target.value}/anos`);
+  $("#mAno").innerHTML = '<option value="">Ano</option>' + d.map(x=>`<option value="${x.codigo}">${x.nome}</option>`).join("");
+};
+$("#mAno").onchange = () => {
+  if(!$("#mAno").value) return;
+  const t = s => s.options[s.selectedIndex].text;
+  veiculo = { marca: t($("#mMarca")), modelo: t($("#mModelo")), ano: parseInt(t($("#mAno")),10) || null };
+  $("#placa").value = "";
+  msg("Veículo escolhido manualmente. Informe a peça e clique em Buscar.");
+};
+
+// ---- Tecfil ao vivo (via ponte: server.mjs local ou Cloudflare Worker)
+async function tecfilVivo(v){
+  const base = ($("#ponte").value.trim() || (location.protocol.startsWith("http") && location.hostname === "localhost" ? "/api/tecfil" : ""));
+  if(!base) return {indisponivel:true};
+  const sep = base.includes("?") ? "&" : "?";
+  const tenta = async q => { const r = await fetch(`${base}${sep}q=${encodeURIComponent(q)}`); if(!r.ok) throw new Error("ponte "+r.status); return r.json(); };
+  const modelo = `${v.modelo} ${v.ano||""}`.trim();
+  let r = await tenta(modelo);
+  if(!r.length && v.marca) r = await tenta(`${v.marca} ${modelo}`);
+  return {r, modelo};
+}
+function cartaoTecfil(d, veic){
+  const q = encodeURIComponent(veic.replace(/\./g,"<DOT>"));
+  const link = `<a target="_blank" rel="noopener" href="https://catalogo.tecfil.com.br/search/${q}" style="color:var(--pri);font-size:.85rem">Abrir no catálogo Tecfil ↗</a>`;
+  if(d.indisponivel) return `<div class="card"><h3 style="margin-top:0">Tecfil ao vivo</h3><p class="warn">Ponte não configurada. Rode <code>node server.mjs</code> e abra <code>http://localhost:3000</code> (ou informe o endereço do Worker nas configurações).</p>${link}</div>`;
+  if(!d.r.length) return `<div class="card"><h3 style="margin-top:0">Tecfil ao vivo</h3><p class="warn">Nenhuma aplicação encontrada para "${esc(d.modelo)}". Tente simplificar o modelo (ex.: "Gol 1.6").</p>${link}</div>`;
+  const blocos = d.r.map(x => `<div style="margin-bottom:14px"><b>${esc(x.fabricante)}</b> · ${esc(x.aplicacao)}
+    <table><tr><th>Filtro</th><th>Código Tecfil</th></tr>${Object.entries(x.filtros).map(([k,c])=>`<tr><td>${esc(k)}</td><td class="cod">${c.map(esc).join(" · ")} ${c.map(z=>`<button class="copy" data-c="${esc(z)}">copiar</button>`).join(" ")}</td></tr>`).join("")}</table></div>`).join("");
+  return `<div class="card"><h3 style="margin-top:0">Tecfil ao vivo <span class="tag">catálogo oficial</span></h3>${blocos}${link}</div>`;
+}
+
+// ---- busca
+function achaPeca(txt){
+  const q = norm(txt); if(!q) return [];
+  const exata = PECAS.filter(p => norm(p.nome) === q || p.sinonimos.some(s => norm(s) === q));
+  if(exata.length) return exata;
+  return PECAS.filter(p => norm(p.nome).includes(q) || p.sinonimos.some(s => norm(s).includes(q) || q.includes(norm(s))));
+}
+function achaAplicacao(peca, v){
+  const marca = norm(v.marca), modelo = norm(v.modelo);
+  return peca.aplicacoes.filter(a =>
+    marca.includes(norm(a.marca)) || norm(a.marca).includes(marca)
+  ).filter(a => new RegExp(a.modelo).test(modelo) &&
+    (!v.ano || (v.ano >= a.anos[0] && v.ano <= a.anos[1])));
+}
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+$("#f").addEventListener("submit", async e => {
+  e.preventDefault(); msg(""); $("#res").innerHTML = "";
+  const placa = $("#placa").value, txt = $("#peca").value;
+  if(!txt.trim()) return msg("Digite a peça.");
+  if($("#tMarca").value.trim() || $("#tModelo").value.trim()){
+    veiculo = { marca: $("#tMarca").value, modelo: $("#tModelo").value, ano: parseInt($("#tAno").value,10) || null };
+  } else if(placa){
+    if(!placaOk(placa)) return msg("Placa inválida. Use ABC1234 ou ABC1D23.");
+    try{
+      const v = await consultaPlaca(placa);
+      if(!v) return msg("Configure a API de placa abaixo, ou escolha o veículo manualmente (FIPE).");
+      veiculo = v;
+    }catch(err){ return msg("Falha na consulta da placa: "+err.message+". Use a seleção manual."); }
+  }
+  if(!veiculo) return msg("Informe a placa ou escolha o veículo manualmente.");
+
+  $("#veiculo").classList.remove("hidden");
+  $("#veiculo").innerHTML = `<div class="veh"><b>${esc(veiculo.marca)} ${esc(veiculo.modelo)}</b>${veiculo.ano?`<span class="tag">${veiculo.ano}</span>`:""}${placa?`<span class="tag">${placa}</span>`:""}</div>`;
+
+  const pecas = achaPeca(txt);
+  const veic0 = `${veiculo.modelo} ${veiculo.ano||""}`.trim();
+  const filtroOuOleo = /FILTR|OLEO|LUBRIF|COMBUST|CABINE|AR /.test(norm(txt)+" ");
+  let vivo = "";
+  if(filtroOuOleo || !pecas.length){
+    $("#res").innerHTML = '<div class="card">Consultando catálogo Tecfil…</div>';
+    try { vivo = cartaoTecfil(await tecfilVivo(veiculo), veic0); }
+    catch(err){ vivo = `<div class="card"><p class="warn">Falha ao consultar a Tecfil: ${esc(err.message)}</p></div>`; }
+    $("#res").innerHTML = vivo;
+  }
+  if(!pecas.length) return $("#res").innerHTML = vivo || `<div class="card">Peça não encontrada na base.</div>`;
+  if(false) return $("#res").innerHTML = `<div class="card">Peça não encontrada na base. Disponíveis: ${PECAS.map(p=>esc(p.nome)).join(", ")}.</div>`;
+  $("#res").innerHTML = vivo + pecas.map(p => {
+    const apps = achaAplicacao(p, veiculo);
+    const q = encodeURIComponent(`${p.nome} ${veiculo.marca} ${veiculo.modelo} ${veiculo.ano||""}`);
+    const links = `<div class="links"><a target="_blank" rel="noopener" href="https://lista.mercadolivre.com.br/${q}">Mercado Livre</a><a target="_blank" rel="noopener" href="https://www.google.com/search?q=${q}">Google</a></div>`;
+    if(!apps.length) return `<div class="card"><h3>${esc(p.nome)}</h3><p class="warn">Sem códigos cadastrados para este veículo. Adicione em <code>data.js</code>.</p>${links}</div>`;
+    if(apps[0].oleo){
+      const a = apps[0], o = a.oleo;
+      const veic = `${veiculo.marca} ${veiculo.modelo} ${veiculo.ano||""}`;
+      const g = t => `<a target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(t)}" style="color:var(--pri);font-size:.8rem">🔎 Google</a>`;
+      const fr = Object.entries(a.filtros).map(([k,v])=>{
+        const tem = v!=="—" && !v.startsWith("Não");
+        return `<tr><td>${esc(k)}</td><td class="cod">${esc(v)}</td><td>${tem?`<button class="copy" data-c="${esc(v)}">copiar</button> `:""}${v.startsWith("Não")?"":g(`filtro ${k.toLowerCase()} Tecfil ${veic} código`)}</td></tr>`;
+      }).join("");
+      return `<div class="card"><h3 style="margin-top:0">${esc(p.nome)} – original de fábrica</h3>
+        <table><tr><th>Viscosidade</th><th>Norma</th><th>Quantidade</th></tr><tr><td><b>${esc(o.viscosidade)}</b></td><td>${esc(o.norma)}</td><td><b>${esc(o.litros)}</b> ${g(`óleo original de fábrica quantidade litros ${veic}`)}</td></tr></table>
+        <h4 style="margin:16px 0 4px">Filtros Tecfil</h4>
+        <table><tr><th>Filtro</th><th>Código Tecfil</th><th></th></tr>${fr}</table>
+        <p class="warn">Códigos Tecfil conferidos no catálogo oficial para o motor/ano de referência (o código pode mudar com motor e ano). Óleo e litros: confirme no manual do proprietário.</p>
+        <div style="margin-top:8px">${links}</div></div>`;
+    }
+    const rows = apps.flatMap(a=>a.codigos).map(c=>`<tr><td>${esc(c.marca)}</td><td class="cod">${esc(c.codigo)}</td><td><button class="copy" data-c="${esc(c.codigo)}">copiar</button></td></tr>`).join("");
+    return `<div class="card"><h3 style="margin-top:0">${esc(p.nome)}</h3><table><tr><th>Marca</th><th>Código</th><th></th></tr>${rows}</table><div style="margin-top:12px">${links}</div></div>`;
+  }).join("");
+});
+document.addEventListener("click", e => {
+  const c = e.target.dataset?.c; if(!c) return;
+  navigator.clipboard?.writeText(c); e.target.textContent = "copiado ✓";
+  setTimeout(()=>e.target.textContent="copiar",1200);
+});
+</script>
+</body>
+</html>
