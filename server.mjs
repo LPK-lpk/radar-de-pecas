@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 import { buscarTecfil } from "./tecfil.mjs";
 
 const raiz = fileURLToPath(new URL(".", import.meta.url));
-const tipos = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css" };
+const tipos = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css",
+  ".webmanifest": "application/manifest+json", ".png": "image/png", ".svg": "image/svg+xml" };
 const cache = new Map();
 
 http.createServer(async (req, res) => {
@@ -26,7 +27,7 @@ http.createServer(async (req, res) => {
     } catch (e) { res.statusCode = 502; return res.end(JSON.stringify({ erro: e.message })); }
   }
   const arq = u.pathname === "/" ? "index.html" : normalize(u.pathname).replace(/^([/\\])+/, "");
-  if (!/^(index\.html|data\.js|tabela\.js|amortecedores\.js)$/.test(arq)) { res.statusCode = 404; return res.end("não encontrado"); }
+  if (!/^(index\.html|data\.js|tabela\.js|amortecedores\.js|sw\.js|manifest\.webmanifest|icons[/\\][\w-]+\.(png|svg))$/.test(arq)) { res.statusCode = 404; return res.end("não encontrado"); }
   try {
     res.setHeader("content-type", tipos[extname(arq)] || "text/plain");
     res.end(await readFile(join(raiz, arq)));

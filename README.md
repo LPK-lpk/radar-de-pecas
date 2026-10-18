@@ -32,3 +32,7 @@ Sem ponte, o painel usa a base local de `data.js`.
 1. **Veículo:** escolha na tabela FIPE (marca → modelo → ano) ou digite marca, modelo e ano.
 2. **Peça:** ex. "óleo do motor", "filtro de ar", "amortecedores".
 3. A placa é opcional: o link ao lado abre o Busca Placas para você descobrir o veículo.
+
+## Aplicativo (PWA)
+O painel é instalável como app: no celular, abra o endereço do GitHub Pages e use *Adicionar à tela inicial* (ou o botão **Instalar** em *Ajustes*). No computador, o Chrome/Edge mostra o ícone de instalar na barra de endereço.
+Arquivos do app: `manifest.webmanifest`, `sw.js` (casco offline) e a pasta `icons/`. Dados da FIPE e da Tecfil nunca ficam em cache.
