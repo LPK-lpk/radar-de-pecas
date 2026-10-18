@@ -24,7 +24,7 @@ O painel consulta o catálogo oficial (catalogo.tecfil.com.br) e mostra todos os
 O site da Tecfil não permite leitura direta pelo navegador (CORS), então há uma "ponte":
 
 - **Local (mais simples):** `node server.mjs` e abra http://localhost:3000 (Node 18+).
-- **Online (GitHub Pages):** publique `worker.js` + `tecfil.mjs` num Cloudflare Worker (`npx wrangler deploy worker.js --name radar-tecfil`) e cole a URL em *Configurar API → Endereço da ponte*.
+- **Online (GitHub Pages):** publique `worker.js` + `tecfil.mjs` num Cloudflare Worker (`cd worker && npx wrangler deploy`) e cole a URL em *Configurar API → Endereço da ponte*.
 
 Sem ponte, o painel usa a base local de `data.js`.
 
@@ -36,3 +36,6 @@ Sem ponte, o painel usa a base local de `data.js`.
 ## Aplicativo (PWA)
 O painel é instalável como app: no celular, abra o endereço do GitHub Pages e use *Adicionar à tela inicial* (ou o botão **Instalar** em *Ajustes*). No computador, o Chrome/Edge mostra o ícone de instalar na barra de endereço.
 Arquivos do app: `manifest.webmanifest`, `sw.js` (casco offline) e a pasta `icons/`. Dados da FIPE e da Tecfil nunca ficam em cache.
+
+## Ponte Tecfil (já publicada)
+O app consulta o catálogo Tecfil sozinho pelo Worker `https://radar-tecfil.leonaldopet.workers.dev/` (código em `worker/`). Para republicar: `cd worker && npx wrangler deploy`.

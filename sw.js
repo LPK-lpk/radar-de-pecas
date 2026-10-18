@@ -1,6 +1,6 @@
 // Service worker do Radar Peças: o "casco" do app funciona offline.
 // Dados externos (FIPE, Tecfil, API de placa) NUNCA são guardados: sempre vão à rede.
-const VERSAO = "radar-v1";
+const VERSAO = "radar-v2";
 const CASCO = ["./", "index.html", "data.js", "tabela.js", "amortecedores.js", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon.svg"];
 

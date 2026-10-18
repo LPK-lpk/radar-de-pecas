@@ -216,9 +216,9 @@
     </div>
     <div class="card">
       <h3>Conexões</h3>
-      <div class="field"><label for="ponte">Ponte da Tecfil (busca ao vivo no catálogo oficial)</label>
-        <input id="ponte" placeholder="https://radar-tecfil.seu-usuario.workers.dev/"></div>
-      <p class="warn" style="color:var(--mut)">Vazio: usa o servidor local (<code>node server.mjs</code>).</p>
+      <div class="field"><label for="ponte">Ponte da Tecfil · avançado</label>
+        <input id="ponte" placeholder="Padrão do app (não precisa preencher)"></div>
+      <p class="warn" style="color:var(--mut)">A busca no catálogo oficial da Tecfil já funciona sozinha. Preencha só se quiser usar a sua própria ponte.</p>
       <div class="field"><label for="apiUrl">API de placa (opcional, serviço pago)</label>
         <input id="apiUrl" placeholder="https://…/{placa}/TOKEN"></div>
       <p class="warn" style="color:var(--mut)">Use <code>{placa}</code> no lugar da placa. Fica salvo só neste aparelho.</p>
@@ -361,12 +361,13 @@ $("#mAno").onchange = () => {
   msg("");
 };
 
-// ---- Tecfil ao vivo (via ponte: server.mjs local ou Cloudflare Worker)
+// ---- Tecfil ao vivo (o próprio app consulta, via ponte padrão no Cloudflare; nada a configurar)
+const PONTE_PADRAO = "https://radar-tecfil.leonaldopet.workers.dev/";
 async function tecfilVivo(v){
   const local = ["localhost","127.0.0.1"].includes(location.hostname);
   const configurada = $("#ponte").value.trim();
-  // ordem: ponte configurada > servidor local (/api) > servidor local do PC (quando o painel está hospedado)
-  const bases = configurada ? [configurada] : local ? ["/api/tecfil"] : ["http://localhost:3000/api/tecfil"];
+  // ordem: ponte configurada > servidor local (/api, se aberto em localhost) > ponte padrão do app (Cloudflare)
+  const bases = configurada ? [configurada] : local ? ["/api/tecfil", PONTE_PADRAO] : [PONTE_PADRAO];
   const modelo = `${v.modelo} ${v.ano||""}`.trim();
   for(const base of bases){
     const sep = base.includes("?") ? "&" : "?";
@@ -385,7 +386,7 @@ async function tecfilVivo(v){
 function cartaoTecfil(d, veic){
   const q = encodeURIComponent(veic.replace(/\./g,"<DOT>"));
   const link = `<div class="links"><a target="_blank" rel="noopener" href="https://catalogo.tecfil.com.br/search/${q}">Abrir no catálogo Tecfil ↗</a></div>`;
-  if(d.indisponivel) return `<div class="card"><h3>Tecfil ao vivo</h3><p class="warn" style="margin-top:0">Não foi possível acessar a ponte da Tecfil. Opções: (1) no seu PC, rode <code>node server.mjs</code> e deixe aberto; ou (2) crie o Worker no Cloudflare com o arquivo <code>worker-unico.js</code> e cole o endereço em <em>Ajustes → Ponte da Tecfil</em>.</p>${link}</div>`;
+  if(d.indisponivel) return `<div class="card"><h3>Tecfil ao vivo</h3><p class="warn" style="margin-top:0">Não foi possível consultar o catálogo da Tecfil agora (sem internet ou serviço fora do ar). Tente de novo em instantes; enquanto isso, mostramos os dados salvos no app.</p>${link}</div>`;
   if(!d.r.length) return `<div class="card"><h3>Tecfil ao vivo</h3><p class="warn" style="margin-top:0">Nenhuma aplicação encontrada para "${esc(d.modelo)}". Tente simplificar o modelo (ex.: "Gol 1.6").</p>${link}</div>`;
   const blocos = d.r.map(x => `<div style="margin-bottom:14px"><b>${esc(x.fabricante)}</b> <span class="sub">· ${esc(x.aplicacao)}</span>
     <table><tr><th>Filtro</th><th>Código Tecfil</th></tr>${Object.entries(x.filtros).map(([k,c])=>`<tr><td>${esc(k)}</td><td class="cod">${c.map(esc).join(" · ")} ${c.map(z=>`<button class="copy" data-c="${esc(z)}">copiar</button>`).join(" ")}</td></tr>`).join("")}</table></div>`).join("");
@@ -442,7 +443,7 @@ function cartaoOleoFiltros(d, erro, v, veic0, peca){
     fonte = "base local (data.js)";
     filtros = `<table><tr><th>Filtro</th><th>Código Tecfil</th></tr>${Object.entries(loc.filtros).map(([k,c]) => tabCods(k, c)).join("")}</table>`;
   }
-  const aviso = d && d.indisponivel ? `<p class="warn">Ponte da Tecfil não configurada: os filtros vêm da ${tab ? "tabela consolidada" : "base local"}. Configure a ponte em Ajustes para ver todos os filtros do catálogo oficial.</p>`
+  const aviso = d && d.indisponivel ? `<p class="warn">Sem conexão com o catálogo da Tecfil: os filtros vêm da ${tab ? "tabela consolidada" : "base local"}. Tente de novo quando estiver online.</p>`
     : erro ? `<p class="warn">Falha ao consultar a Tecfil (${esc(erro)}); usando ${fonte || "nenhuma fonte"}.</p>`
     : d && d.r && !d.r.length ? `<p class="warn">A Tecfil não achou "${esc(d.modelo)}". Tente simplificar o modelo (ex.: "Gol 1.6").</p>` : "";
   const q = encodeURIComponent(veic0.replace(/\./g,"<DOT>"));
