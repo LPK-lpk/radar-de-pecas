@@ -32,6 +32,8 @@
   details summary{cursor:pointer;color:var(--mut)}
   .manual{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
   .hidden{display:none}
+  .invalido{border-color:#d92d20;box-shadow:0 0 0 2px rgba(217,45,32,.25)}
+  #msg.erro{background:rgba(217,45,32,.1);border:1px solid #d92d20;color:#b42318;padding:10px 12px;border-radius:8px;margin-bottom:12px}
   @media(max-width:640px){form{grid-template-columns:1fr}.manual{grid-template-columns:1fr}}
 </style>
 </head>
@@ -44,7 +46,7 @@
     <form id="f">
       <div><label for="placa">Placa</label><input id="placa" maxlength="8" placeholder="ABC1D23" autocomplete="off"></div>
       <div><label for="peca">Peça</label><input id="peca" list="lista" placeholder="Ex.: filtro de óleo" autocomplete="off"><datalist id="lista"></datalist></div>
-      <button type="submit">Buscar</button>
+      <div style="display:flex;gap:8px"><button type="submit">Buscar</button><button type="button" class="sec" id="limpar">Limpar</button></div>
     </form>
     <div style="margin-top:14px">
       <a id="bp" class="links" target="_blank" rel="noopener" href="https://buscaplacas.com.br/" style="color:var(--pri);font-size:.9rem">🔎 Consultar esta placa no Busca Placas ↗</a>
@@ -87,7 +89,7 @@ $("#lista").innerHTML = PECAS.map(p=>`<option value="${p.nome}">`).join("");
 $("#apiUrl").value = localStorage.getItem("apiPlaca") || "";
 $("#ponte").value = localStorage.getItem("ponteTecfil") || "";
 $("#salvaApi").onclick = () => { localStorage.setItem("ponteTecfil", $("#ponte").value.trim()); localStorage.setItem("apiPlaca", $("#apiUrl").value.trim()); msg("Configuração salva."); };
-function msg(t){ $("#msg").textContent = t||""; }
+function msg(t){ $("#msg").textContent = t||""; $("#msg").className = /^(⚠|Falha|Placa inv|Informe|Configure)/.test(t||"") ? "erro" : ""; }
 
 // ---- placa
 const placaOk = p => /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(p);
@@ -199,8 +201,18 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 
 $("#f").addEventListener("submit", async e => {
   e.preventDefault(); msg(""); $("#res").innerHTML = "";
+  document.querySelectorAll(".invalido").forEach(x => x.classList.remove("invalido"));
   const placa = $("#placa").value, txt = $("#peca").value;
-  if(!txt.trim()) return msg("Digite a peça.");
+  const manual = $("#tMarca").value.trim() || $("#tModelo").value.trim();
+  const faltas = [], campos = [];
+  if(!txt.trim()){ faltas.push("a peça (ex.: óleo do motor, filtro de ar)"); campos.push("#peca"); }
+  if(!manual && !placa && !veiculo){ faltas.push("a placa ou o modelo do veículo (marca/modelo/ano)"); campos.push("#placa","#tModelo"); }
+  else if(!manual && placa && !placaOk(placa)){ faltas.push("uma placa válida (ABC1234 ou ABC1D23)"); campos.push("#placa"); }
+  if(faltas.length){
+    campos.forEach(s => $(s).classList.add("invalido"));
+    $(campos[0]).focus();
+    return msg("⚠️ Informação obrigatória faltando: preencha " + faltas.join(" e ") + ".");
+  }
   if($("#tMarca").value.trim() || $("#tModelo").value.trim()){
     let marca = $("#tMarca").value.trim(), modelo = $("#tModelo").value.trim();
     if(!modelo){ modelo = marca; marca = ""; } // só um campo preenchido: trata como modelo (ex.: "Spacefox")
@@ -255,6 +267,18 @@ $("#f").addEventListener("submit", async e => {
     return `<div class="card"><h3 style="margin-top:0">${esc(p.nome)}</h3><table><tr><th>Marca</th><th>Código</th><th></th></tr>${rows}</table><div style="margin-top:12px">${links}</div></div>`;
   }).join("");
 });
+document.addEventListener("input", e => e.target.classList?.remove("invalido"));
+$("#limpar").onclick = () => {
+  document.querySelectorAll(".invalido").forEach(x => x.classList.remove("invalido"));
+  $("#f").reset();
+  ["#tMarca","#tModelo","#tAno","#placa","#peca"].forEach(s => $(s).value = "");
+  $("#mMarca").value = ""; $("#mModelo").innerHTML = '<option value="">Modelo</option>'; $("#mModelo").disabled = true;
+  $("#mAno").innerHTML = '<option value="">Ano</option>'; $("#mAno").disabled = true;
+  veiculo = null; msg("");
+  $("#res").innerHTML = ""; $("#veiculo").innerHTML = ""; $("#veiculo").classList.add("hidden");
+  $("#bp").href = "https://buscaplacas.com.br/";
+  $("#placa").focus();
+};
 document.addEventListener("click", e => {
   const c = e.target.dataset?.c; if(!c) return;
   navigator.clipboard?.writeText(c); e.target.textContent = "copiado ✓";
