@@ -202,7 +202,9 @@ $("#f").addEventListener("submit", async e => {
   const placa = $("#placa").value, txt = $("#peca").value;
   if(!txt.trim()) return msg("Digite a peça.");
   if($("#tMarca").value.trim() || $("#tModelo").value.trim()){
-    veiculo = { marca: $("#tMarca").value, modelo: $("#tModelo").value, ano: parseInt($("#tAno").value,10) || null };
+    let marca = $("#tMarca").value.trim(), modelo = $("#tModelo").value.trim();
+    if(!modelo){ modelo = marca; marca = ""; } // só um campo preenchido: trata como modelo (ex.: "Spacefox")
+    veiculo = { marca, modelo, ano: parseInt($("#tAno").value,10) || null };
   } else if(placa){
     if(!placaOk(placa)) return msg("Placa inválida. Use ABC1234 ou ABC1D23.");
     try{
