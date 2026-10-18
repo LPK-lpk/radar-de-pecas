@@ -138,19 +138,26 @@ $("#mAno").onchange = () => {
 
 // ---- Tecfil ao vivo (via ponte: server.mjs local ou Cloudflare Worker)
 async function tecfilVivo(v){
-  const base = ($("#ponte").value.trim() || (location.protocol.startsWith("http") && location.hostname === "localhost" ? "/api/tecfil" : ""));
-  if(!base) return {indisponivel:true};
-  const sep = base.includes("?") ? "&" : "?";
-  const tenta = async q => { const r = await fetch(`${base}${sep}q=${encodeURIComponent(q)}`); if(!r.ok) throw new Error("ponte "+r.status); return r.json(); };
+  const local = ["localhost","127.0.0.1"].includes(location.hostname);
+  const configurada = $("#ponte").value.trim();
+  // ordem: ponte configurada > servidor local (/api) > servidor local do PC (quando o painel está hospedado)
+  const bases = configurada ? [configurada] : local ? ["/api/tecfil"] : ["http://localhost:3000/api/tecfil"];
   const modelo = `${v.modelo} ${v.ano||""}`.trim();
-  let r = await tenta(modelo);
-  if(!r.length && v.marca) r = await tenta(`${v.marca} ${modelo}`);
-  return {r, modelo};
+  for(const base of bases){
+    const sep = base.includes("?") ? "&" : "?";
+    const tenta = async q => { const r = await fetch(`${base}${sep}q=${encodeURIComponent(q)}`); if(!r.ok) throw new Error("ponte "+r.status); return r.json(); };
+    try{
+      let r = await tenta(modelo);
+      if(!r.length && v.marca) r = await tenta(`${v.marca} ${modelo}`);
+      return {r, modelo};
+    }catch(e){ if(configurada) throw e; }
+  }
+  return {indisponivel:true};
 }
 function cartaoTecfil(d, veic){
   const q = encodeURIComponent(veic.replace(/\./g,"<DOT>"));
   const link = `<a target="_blank" rel="noopener" href="https://catalogo.tecfil.com.br/search/${q}" style="color:var(--pri);font-size:.85rem">Abrir no catálogo Tecfil ↗</a>`;
-  if(d.indisponivel) return `<div class="card"><h3 style="margin-top:0">Tecfil ao vivo</h3><p class="warn">Ponte não configurada. Rode <code>node server.mjs</code> e abra <code>http://localhost:3000</code> (ou informe o endereço do Worker nas configurações).</p>${link}</div>`;
+  if(d.indisponivel) return `<div class="card"><h3 style="margin-top:0">Tecfil ao vivo</h3><p class="warn">Não foi possível acessar a ponte da Tecfil. Escolha uma opção: (1) no seu PC, rode <code>node server.mjs</code> e deixe aberto (o painel hospedado passa a usá-lo automaticamente; se o navegador perguntar sobre acesso à rede local, permita); ou (2) crie o Worker no Cloudflare com o arquivo <code>worker-unico.js</code> e cole o endereço em <em>Configurar API → Endereço da ponte</em>.</p>${link}</div>`;
   if(!d.r.length) return `<div class="card"><h3 style="margin-top:0">Tecfil ao vivo</h3><p class="warn">Nenhuma aplicação encontrada para "${esc(d.modelo)}". Tente simplificar o modelo (ex.: "Gol 1.6").</p>${link}</div>`;
   const blocos = d.r.map(x => `<div style="margin-bottom:14px"><b>${esc(x.fabricante)}</b> · ${esc(x.aplicacao)}
     <table><tr><th>Filtro</th><th>Código Tecfil</th></tr>${Object.entries(x.filtros).map(([k,c])=>`<tr><td>${esc(k)}</td><td class="cod">${c.map(esc).join(" · ")} ${c.map(z=>`<button class="copy" data-c="${esc(z)}">copiar</button>`).join(" ")}</td></tr>`).join("")}</table></div>`).join("");

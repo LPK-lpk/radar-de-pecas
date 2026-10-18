@@ -16,6 +16,9 @@ http.createServer(async (req, res) => {
     const q = u.searchParams.get("q") || "";
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.setHeader("access-control-allow-origin", "*");
+    res.setHeader("access-control-allow-private-network", "true");
+    res.setHeader("access-control-allow-methods", "GET, OPTIONS");
+    if (req.method === "OPTIONS") { res.statusCode = 204; return res.end(); }
     if (q.length < 2) { res.statusCode = 400; return res.end('{"erro":"q obrigatório"}'); }
     try {
       if (!cache.has(q)) cache.set(q, await buscarTecfil(q));
