@@ -77,13 +77,14 @@
 </main>
 <script src="data.js"></script>
 <script src="tabela.js"></script>
+<script src="amortecedores.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const norm = s => (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().trim();
 let veiculo = null; // {marca, modelo, ano}
 
 // ---- peças (autocompletar)
-$("#lista").innerHTML = PECAS.map(p=>`<option value="${p.nome}">`).join("");
+$("#lista").innerHTML = [...PECAS.map(p=>p.nome), "Amortecedores e kits"].map(n=>`<option value="${n}">`).join("");
 
 // ---- config API
 $("#apiUrl").value = localStorage.getItem("apiPlaca") || "";
@@ -216,6 +217,33 @@ function cartaoOleoFiltros(d, erro, v, veic0, peca){
     <div class="links"><a target="_blank" rel="noopener" href="https://catalogo.tecfil.com.br/search/${q}">Abrir no catálogo Tecfil ↗</a><a target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent("óleo e filtros "+vn)}">Google</a></div></div>`;
 }
 
+// ---- Amortecedores (Monroe, Cofap) e kits batente/guarda-pó (Axios), dianteiros e traseiros, com e sem coxim
+function cartaoAmortecedores(v){
+  const modelo = norm(v.modelo), marca0 = norm(v.marca), marca = ALIAS[marca0] || marca0;
+  const reg = (window.AMORT||[]).find(a =>
+    (!marca || marca.includes(norm(a.marca)) || norm(a.marca).includes(marca) || ALIAS[norm(a.marca)] === marca) &&
+    new RegExp(a.modelo).test(modelo) && (!v.ano || (v.ano >= a.anos[0] && v.ano <= a.anos[1])));
+  const vn = `${v.marca} ${v.modelo} ${v.ano||""}`.trim();
+  const go = t => `<a target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(t)}" style="color:var(--pri);font-size:.8rem">🔎</a>`;
+  const cel = (cod, busca) => cod
+    ? `<span class="cod">${esc(cod)}</span> <button class="copy" data-c="${esc(cod)}">copiar</button>`
+    : `<span class="sub" style="font-size:.8rem">não cadastrado</span> ${go(busca)}`;
+  const g = (m, k) => reg?.[m]?.[k] || "";
+  const linhas = [
+    ["Amortecedor dianteiro", cel(g("monroe","dianteiro"), `amortecedor dianteiro Monroe ${vn} código`), cel(g("cofap","dianteiro"), `amortecedor dianteiro Cofap ${vn} código`), "—"],
+    ["Amortecedor traseiro",  cel(g("monroe","traseiro"),  `amortecedor traseiro Monroe ${vn} código`),  cel(g("cofap","traseiro"),  `amortecedor traseiro Cofap ${vn} código`),  "—"],
+    ["Kit dianteiro COM coxim (coxim + batente + guarda-pó)", "—", "—", cel(g("axios","dianteiroComCoxim"), `kit coxim batente guarda pó dianteiro Axios ${vn} código`)],
+    ["Kit dianteiro SEM coxim (batente + guarda-pó)",           "—", "—", cel(g("axios","dianteiroSemCoxim"), `kit batente guarda pó dianteiro Axios ${vn} sem coxim código`)],
+    ["Kit traseiro COM coxim",                                  "—", "—", cel(g("axios","traseiroComCoxim"),  `kit coxim batente guarda pó traseiro Axios ${vn} código`)],
+    ["Kit traseiro SEM coxim (batente + guarda-pó)",            "—", "—", cel(g("axios","traseiroSemCoxim"),  `kit batente guarda pó traseiro Axios ${vn} sem coxim código`)]
+  ].map(l => `<tr><td>${esc(l[0])}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3]}</td></tr>`).join("");
+  const aviso = reg ? `<p class="warn">Base local${reg.nota ? " ("+esc(reg.nota)+")" : ""}: confira a aplicação (ano, motor, lado) no catálogo do fabricante.</p>`
+    : `<p class="warn">Este veículo ainda não está em <code>amortecedores.js</code>. Consulte os catálogos abaixo (os links 🔎 pesquisam no Google) e cadastre os códigos para aparecerem aqui.</p>`;
+  return `<div class="card"><h3 style="margin-top:0">Amortecedores e kits <span class="tag">${esc(vn)}</span></h3>
+    <table><tr><th>Item</th><th>Monroe</th><th>Cofap</th><th>Axios</th></tr>${linhas}</table>${aviso}
+    <div class="links"><a target="_blank" rel="noopener" href="https://catalogo.drivbrasil.com.br/">Catálogo DRiV (Monroe/Axios) ↗</a><a target="_blank" rel="noopener" href="https://mmcofap.com.br/">Catálogo Cofap ↗</a></div></div>`;
+}
+
 // ---- busca
 function achaPeca(txt){
   const q = norm(txt); if(!q) return [];
@@ -263,6 +291,7 @@ $("#f").addEventListener("submit", async e => {
   $("#veiculo").classList.remove("hidden");
   $("#veiculo").innerHTML = `<div class="veh"><b>${esc(veiculo.marca)} ${esc(veiculo.modelo)}</b>${veiculo.ano?`<span class="tag">${veiculo.ano}</span>`:""}${placa?`<span class="tag">${placa}</span>`:""}</div>`;
 
+  if(/AMORTEC|BATENTE|GUARDA PO|COXIM/.test(norm(txt))) return $("#res").innerHTML = cartaoAmortecedores(veiculo);
   const pecas = achaPeca(txt);
   const veic0 = `${veiculo.modelo} ${veiculo.ano||""}`.trim();
   const filtroOuOleo = /FILTR|OLEO|LUBRIF|COMBUST|CABINE|AR /.test(norm(txt)+" ");
