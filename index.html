@@ -289,7 +289,13 @@ $("#f").addEventListener("submit", async e => {
     if(!placaOk(placa)) return msg("Placa inválida. Use ABC1234 ou ABC1D23.");
     try{
       const v = await consultaPlaca(placa);
-      if(!v) return msg("Configure a API de placa abaixo, ou escolha o veículo manualmente (FIPE).");
+      if(!v){
+        ["#tMarca","#tModelo","#tAno"].forEach(s => $(s).classList.add("invalido"));
+        $("#bp").href = "https://buscaplacas.com.br/?plate=" + placa;
+        $("#bp").scrollIntoView({block:"center"});
+        $("#tModelo").focus();
+        return msg(`⚠️ A placa ${placa} não vira veículo sem uma API de placas (serviço pago). Passo a passo: 1) clique em "Consultar esta placa no Busca Placas" e veja marca/modelo/ano; 2) preencha os 3 campos abaixo (ou use a seleção FIPE); 3) clique em Buscar de novo.`);
+      }
       veiculo = v;
     }catch(err){ return msg("Falha na consulta da placa: "+err.message+". Use a seleção manual."); }
   }
