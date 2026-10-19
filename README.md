@@ -29,7 +29,7 @@ O site da Tecfil não permite leitura direta pelo navegador (CORS), então há u
 Sem ponte, o painel usa a base local de `data.js`.
 
 ## Como usar (sem API de placa)
-1. **Veículo:** escolha na tabela FIPE (marca → modelo → ano) ou digite marca, modelo e ano.
+1. **Veículo:** digite marca, modelo e ano; cada campo busca na tabela FIPE enquanto você digita (e aceita texto livre).
 2. **Peça:** ex. "óleo do motor", "filtro de ar", "amortecedores".
 3. A placa é opcional: o link ao lado abre o Busca Placas para você descobrir o veículo.
 

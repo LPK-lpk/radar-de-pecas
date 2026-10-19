@@ -143,6 +143,19 @@
     padding:9px 16px;border-radius:99px;font-size:.84rem;font-weight:600;opacity:0;pointer-events:none;transition:.22s;z-index:50}
   .toast.on{opacity:1;transform:translate(-50%,0)}
   .foot{font-size:.76rem;color:var(--mut);text-align:center;margin:18px 6px 0}
+  /* campo que busca e aceita digitar */
+  .card.vc{overflow:visible}
+  .cb{position:relative}
+  .cb input{background-image:linear-gradient(45deg,transparent 50%,var(--mut) 50%),linear-gradient(135deg,var(--mut) 50%,transparent 50%);
+    background-position:calc(100% - 20px) 21px,calc(100% - 15px) 21px;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
+  .cb-list{display:none;position:absolute;z-index:25;left:0;right:0;top:calc(100% + 6px);max-height:min(300px,45vh);overflow:auto;list-style:none;margin:0;padding:6px;
+    background:var(--card);border:1px solid var(--bd);border-radius:14px;box-shadow:0 14px 36px rgba(0,0,0,.16)}
+  .cb-list.on{display:block}
+  .cb-list li{padding:9px 11px;border-radius:9px;font-size:.9rem;cursor:pointer;line-height:1.35}
+  .cb-list li.act,.cb-list li:hover{background:var(--surface2)}
+  .cb-list li.vazio{color:var(--mut);cursor:default;font-size:.82rem}
+  .cb-list li.vazio:hover{background:none}
+
   /* ===== comportamento: CELULAR (padrão) × COMPUTADOR (≥ 980px) ===== */
   .brand{display:none}
   .empty-state{display:none}
@@ -213,22 +226,14 @@
     </div>
 
     <div class="buscar-grid"><div class="col-form">
-    <div class="card">
+    <div class="card vc">
       <div class="step"><i>1</i><h3>Veículo</h3></div>
-      <div class="seg" role="tablist" aria-label="Como informar o veículo">
-        <button type="button" class="on" data-modo="fipe">Tabela FIPE</button>
-        <button type="button" data-modo="manual">Digitar</button>
+      <div class="grid3">
+        <div class="cb"><input id="tMarca" placeholder="Marca" aria-label="Marca" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list"><ul class="cb-list" role="listbox"></ul></div>
+        <div class="cb"><input id="tModelo" placeholder="Modelo" aria-label="Modelo" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list"><ul class="cb-list" role="listbox"></ul></div>
+        <div class="cb"><input id="tAno" placeholder="Ano" inputmode="numeric" aria-label="Ano" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list"><ul class="cb-list" role="listbox"></ul></div>
       </div>
-      <div id="pFipe" class="grid3">
-        <select id="mMarca" aria-label="Marca"><option value="">Marca</option></select>
-        <select id="mModelo" aria-label="Modelo" disabled><option value="">Modelo</option></select>
-        <select id="mAno" aria-label="Ano" disabled><option value="">Ano</option></select>
-      </div>
-      <div id="pManual" class="grid3 hidden">
-        <input id="tMarca" placeholder="Marca (ex.: Volkswagen)" aria-label="Marca" autocomplete="off">
-        <input id="tModelo" placeholder="Modelo (ex.: Gol 1.6)" aria-label="Modelo" autocomplete="off">
-        <input id="tAno" type="number" inputmode="numeric" placeholder="Ano (ex.: 2014)" aria-label="Ano">
-      </div>
+      <p class="sub" style="font-size:.8rem;margin:8px 2px 0">Digite para buscar na tabela FIPE, ou escreva livremente (ex.: Volkswagen · Gol 1.6 · 2014).</p>
       <div class="row">
         <div style="width:160px"><label class="lbl" for="placa">Placa · opcional</label><input id="placa" maxlength="8" placeholder="ABC1D23" autocomplete="off"></div>
         <a id="bp" class="linkbtn" target="_blank" rel="noopener" href="https://buscaplacas.com.br/" style="padding-bottom:15px">Descobrir veículo da placa ↗</a>
@@ -318,7 +323,6 @@
 const $ = s => document.querySelector(s);
 const norm = s => (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().trim();
 let veiculo = null; // {marca, modelo, ano}
-let modo = "fipe";  // fipe | manual
 const ehDesktop = () => matchMedia("(min-width: 980px)").matches; // computador: 2 colunas + barra lateral; celular: 1 coluna + barra inferior
 
 // ---- navegação (app)
@@ -349,18 +353,7 @@ $("#btnInstalar").onclick = async () => {
 if(matchMedia("(display-mode: standalone)").matches || navigator.standalone) $("#boxInstalar").classList.add("hidden");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
 
-// ---- modo do veículo (FIPE ou digitar)
-function setModo(m){
-  modo = m;
-  document.querySelectorAll(".seg [data-modo]").forEach(b => b.classList.toggle("on", b.dataset.modo === m));
-  $("#pFipe").classList.toggle("hidden", m !== "fipe");
-  $("#pManual").classList.toggle("hidden", m !== "manual");
-  if(m === "fipe"){ ["#tMarca","#tModelo","#tAno"].forEach(x => $(x).value = ""); }
-  else { veiculo = null; $("#mMarca").value = ""; $("#mModelo").innerHTML = '<option value="">Modelo</option>'; $("#mModelo").disabled = true; $("#mAno").innerHTML = '<option value="">Ano</option>'; $("#mAno").disabled = true; }
-  document.querySelectorAll(".invalido").forEach(x => x.classList.remove("invalido"));
-}
-document.querySelectorAll(".seg [data-modo]").forEach(b => b.onclick = () => setModo(b.dataset.modo));
-const campoVeiculo = () => modo === "fipe" ? ["#mMarca"] : ["#tModelo"];
+const campoVeiculo = () => ["#tModelo"];
 
 // ---- peças (autocompletar + sugestões)
 const SUGESTOES = ["Óleo do motor","Filtro de ar","Pastilha de freio","Vela de ignição","Amortecedores e kits"];
@@ -397,26 +390,53 @@ async function consultaPlaca(placa){
 // ---- FIPE
 const FIPE = "https://parallelum.com.br/fipe/api/v1/carros";
 const fj = u => fetch(u).then(r=>r.json());
-fj(FIPE+"/marcas").then(m=>{ $("#mMarca").innerHTML += m.map(x=>`<option value="${x.codigo}">${x.nome}</option>`).join(""); }).catch(()=>{});
-$("#mMarca").onchange = async e => {
-  $("#mModelo").disabled = !e.target.value; $("#mAno").disabled = true;
-  if(!e.target.value) return;
-  const d = await fj(`${FIPE}/marcas/${e.target.value}/modelos`);
-  $("#mModelo").innerHTML = '<option value="">Modelo</option>' + d.modelos.map(x=>`<option value="${x.codigo}">${x.nome}</option>`).join("");
-};
-$("#mModelo").onchange = async e => {
-  $("#mAno").disabled = !e.target.value;
-  if(!e.target.value) return;
-  const d = await fj(`${FIPE}/marcas/${$("#mMarca").value}/modelos/${e.target.value}/anos`);
-  $("#mAno").innerHTML = '<option value="">Ano</option>' + d.map(x=>`<option value="${x.codigo}">${x.nome}</option>`).join("");
-};
-$("#mAno").onchange = () => {
-  if(!$("#mAno").value) return;
-  const t = s => s.options[s.selectedIndex].text;
-  veiculo = { marca: t($("#mMarca")), modelo: t($("#mModelo")), ano: parseInt(t($("#mAno")),10) || null };
-  ["#tMarca","#tModelo","#tAno"].forEach(x => $(x).value = "");
-  msg("");
-};
+const est = {marcas:[], marcaSel:null, modelos:[], modeloSel:null, anos:[]};
+fj(FIPE+"/marcas").then(m => { est.marcas = m.map(x => ({label:x.nome, code:x.codigo})); }).catch(()=>{});
+
+// campo "busca + digitar": filtra a lista enquanto digita (todas as palavras, em qualquer ordem) e aceita texto livre
+function combo(id, itens, aoEscolher, aoEditar){
+  const inp = $("#"+id), ul = inp.nextElementSibling; let ativo = -1, vis = [];
+  const fecha = () => { ul.classList.remove("on"); inp.setAttribute("aria-expanded","false"); ativo = -1; };
+  const marca = () => [...ul.children].forEach((li,i) => li.classList.toggle("act", i === ativo));
+  const render = () => {
+    const todos = itens(), toks = norm(inp.value).split(/\s+/).filter(Boolean);
+    vis = todos.filter(it => { const n = norm(it.label); return toks.every(t => n.includes(t)); })
+      .sort((x,y) => (toks[0] && norm(y.label).startsWith(toks[0]) ? 1 : 0) - (toks[0] && norm(x.label).startsWith(toks[0]) ? 1 : 0)).slice(0, 60);
+    ul.innerHTML = vis.map((it,i) => '<li role="option" data-i="'+i+'">'+esc(it.label)+'</li>').join("")
+      || (todos.length ? '<li class="vazio">Nada na tabela — pode seguir digitando livremente</li>' : "");
+    ul.classList.toggle("on", !!ul.innerHTML); inp.setAttribute("aria-expanded", String(!!ul.innerHTML)); ativo = -1;
+  };
+  const escolhe = i => { const it = vis[i]; if(!it) return; inp.value = it.label; fecha(); aoEscolher(it); };
+  inp.addEventListener("input", () => { aoEditar(); render(); });
+  inp.addEventListener("focus", render);
+  inp.addEventListener("click", render);
+  inp.addEventListener("keydown", e => {
+    const aberta = ul.classList.contains("on");
+    if(e.key === "ArrowDown" || e.key === "ArrowUp"){
+      if(!aberta) render();
+      if(!vis.length) return; e.preventDefault();
+      ativo = (ativo + (e.key === "ArrowDown" ? 1 : -1) + vis.length) % vis.length; marca();
+      ul.children[ativo]?.scrollIntoView({block:"nearest"});
+    } else if(e.key === "Enter" && aberta && ativo >= 0){ e.preventDefault(); e.stopPropagation(); escolhe(ativo); }
+    else if(e.key === "Escape" && aberta){ e.stopPropagation(); fecha(); }
+  });
+  ul.addEventListener("mousedown", e => { const li = e.target.closest("li[data-i]"); if(li){ e.preventDefault(); escolhe(+li.dataset.i); } });
+  // ao sair do campo: se só uma opção combina, usa ela
+  inp.addEventListener("blur", () => { setTimeout(() => { if(ul.classList.contains("on") && inp.value.trim() && vis.length === 1) escolhe(0); fecha(); }, 120); });
+}
+combo("tMarca", () => est.marcas, async it => {
+  est.marcaSel = it; est.modelos = []; est.modeloSel = null; est.anos = []; $("#tModelo").value = ""; $("#tAno").value = "";
+  try{ const d = await fj(FIPE+"/marcas/"+it.code+"/modelos"); est.modelos = d.modelos.map(x => ({label:x.nome, code:x.codigo})); }catch{}
+  $("#tModelo").focus();
+}, () => { if(est.marcaSel && norm($("#tMarca").value) !== norm(est.marcaSel.label)){ est.marcaSel = null; est.modelos = []; est.modeloSel = null; est.anos = []; } });
+combo("tModelo", () => est.modelos, async it => {
+  est.modeloSel = it; est.anos = []; $("#tAno").value = "";
+  try{ const d = await fj(FIPE+"/marcas/"+est.marcaSel.code+"/modelos/"+it.code+"/anos"); est.anos = d.map(x => ({label:x.nome, code:x.codigo})); }catch{}
+  $("#tAno").focus();
+}, () => { if(est.modeloSel && norm($("#tModelo").value) !== norm(est.modeloSel.label)){ est.modeloSel = null; est.anos = []; } });
+combo("tAno", () => est.anos, () => {}, () => {});
+function limpaVeiculo(){ est.marcaSel = null; est.modelos = []; est.modeloSel = null; est.anos = []; }
+
 
 // ---- Tecfil ao vivo (o próprio app consulta, via ponte padrão no Cloudflare; nada a configurar)
 const PONTE_PADRAO = "https://radar-tecfil.leonaldopet.workers.dev/";
@@ -557,12 +577,13 @@ const carregando = '<div class="card"><h3>Consultando catálogo…</h3><div clas
 $("#f").addEventListener("submit", async e => {
   e.preventDefault(); msg(""); $("#res").innerHTML = "";
   document.querySelectorAll(".invalido").forEach(x => x.classList.remove("invalido"));
+  veiculo = null;
   const placa = $("#placa").value, txt = $("#peca").value;
   const manual = $("#tMarca").value.trim() || $("#tModelo").value.trim();
   const faltas = [], campos = [];
   if(!txt.trim()){ faltas.push("a peça (ex.: óleo do motor, filtro de ar)"); campos.push("#peca"); }
-  if(!manual && !placa && !veiculo){ faltas.push("o veículo (escolha na tabela FIPE ou digite marca, modelo e ano)"); campos.push(...campoVeiculo()); }
-  else if(!manual && !veiculo && placa && !placaOk(placa)){ faltas.push("uma placa válida (ABC1234 ou ABC1D23)"); campos.push("#placa"); }
+  if(!manual && !placa){ faltas.push("o veículo (marca, modelo e ano: digite e escolha na lista, ou escreva livremente)"); campos.push(...campoVeiculo()); }
+  else if(!manual && placa && !placaOk(placa)){ faltas.push("uma placa válida (ABC1234 ou ABC1D23)"); campos.push("#placa"); }
   if(faltas.length){
     campos.forEach(s => $(s).classList.add("invalido"));
     $(campos[0]).focus();
@@ -572,7 +593,7 @@ $("#f").addEventListener("submit", async e => {
     let marca = $("#tMarca").value.trim(), modelo = $("#tModelo").value.trim();
     if(!modelo){ modelo = marca; marca = ""; } // só um campo preenchido: trata como modelo (ex.: "Spacefox")
     veiculo = { marca, modelo, ano: parseInt($("#tAno").value,10) || null };
-  } else if(placa && !veiculo){
+  } else if(placa){
     if(!placaOk(placa)) return msg("Placa inválida. Use ABC1234 ou ABC1D23.");
     try{
       const v = await consultaPlaca(placa);
@@ -580,12 +601,12 @@ $("#f").addEventListener("submit", async e => {
         campoVeiculo().forEach(s => $(s).classList.add("invalido"));
         $("#bp").href = "https://buscaplacas.com.br/?plate=" + placa;
         if(!ehDesktop()) $("#bp").scrollIntoView({block:"center"});
-        return msg(`⚠️ A placa ${placa} não vira veículo sem uma API de placas (serviço pago). Passo a passo: 1) toque em "Descobrir veículo da placa" e veja marca/modelo/ano; 2) escolha o veículo na FIPE ou digite marca, modelo e ano (acima); 3) toque em Buscar de novo.`);
+        return msg(`⚠️ A placa ${placa} não vira veículo sem uma API de placas (serviço pago). Passo a passo: 1) toque em "Descobrir veículo da placa" e veja marca/modelo/ano; 2) preencha marca, modelo e ano nos campos acima; 3) toque em Buscar de novo.`);
       }
-      veiculo = v;
+      veiculo = v; $("#tMarca").value = v.marca; $("#tModelo").value = v.modelo; $("#tAno").value = v.ano || "";
     }catch(err){ return msg("Falha na consulta da placa: "+err.message+". Use a seleção manual."); }
   }
-  if(!veiculo) return msg("Informe a placa ou escolha o veículo manualmente.");
+  if(!veiculo) return msg("Informe marca, modelo e ano do veículo.");
 
   $("#veiculo").classList.remove("hidden");
   $("#veiculo").innerHTML = `<div class="veh"><span class="lbl" style="margin:0;width:100%">Veículo</span><b>${esc(veiculo.marca)} ${esc(veiculo.modelo)}</b>${veiculo.ano?`<span class="tag">${veiculo.ano}</span>`:""}${placaOk(placa)?`<span class="tag">${placa}</span>`:""}</div>`;
@@ -637,10 +658,10 @@ document.addEventListener("change", e => e.target.classList?.remove("invalido"))
 $("#limpar").onclick = () => {
   $("#f").reset();
   ["#tMarca","#tModelo","#tAno","#placa","#peca"].forEach(s => $(s).value = "");
-  setModo("fipe"); veiculo = null; msg("");
+  limpaVeiculo(); veiculo = null; msg("");
   $("#res").innerHTML = ""; $("#veiculo").innerHTML = ""; $("#veiculo").classList.add("hidden");
   $("#bp").href = "https://buscaplacas.com.br/";
-  if(ehDesktop()) $("#mMarca").focus(); else scrollTo({top:0, behavior:"smooth"});
+  if(ehDesktop()) $("#tMarca").focus(); else scrollTo({top:0, behavior:"smooth"});
 };
 // atalhos de teclado (computador)
 document.addEventListener("keydown", e => {
