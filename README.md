@@ -43,3 +43,6 @@ O app consulta o catálogo Tecfil sozinho pelo Worker `https://radar-tecfil.leon
 ## Dois comportamentos (celular × computador)
 - **Celular (< 980 px):** uma coluna, barra de navegação inferior, rolagem automática até o resultado.
 - **Computador (≥ 980 px):** barra lateral, formulário fixo à esquerda e resultados à direita; atalhos `/` (foca a peça), `Enter` (busca) e `Esc` (limpa).
+
+## Catálogo Cofap Linha Leve (amortecedores e kits)
+`cofap.js` traz os dados do *Catálogo de Produtos Linha Leve Cofap* (PDF): ~790 amortecedores (dianteiro/traseiro por veículo e ano), ~500 kits de suspensão e a tabela *Cross Reference* com os códigos equivalentes **Monroe**, Nakata e KYB. Ao buscar "amortecedores", o app mostra: amortecedor dianteiro e traseiro (Monroe e Cofap) e os kits dianteiro/traseiro **com coxim** (Top Kit, código TKC…) e **sem coxim** (Kit Suspensão = batente + coifa, código KSC…). O arquivo só é baixado quando você busca amortecedores. Axios continua em `amortecedores.js`.

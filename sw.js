@@ -1,8 +1,8 @@
 // Service worker do Radar Peças: o "casco" do app funciona offline.
 // Dados externos (FIPE, Tecfil, API de placa) NUNCA são guardados: sempre vão à rede.
 // Páginas e scripts: REDE PRIMEIRO (sempre a versão mais nova); o cache só entra se estiver offline.
-const VERSAO = "radar-v5";
-const CASCO = ["./", "index.html", "data.js", "tabela.js", "amortecedores.js", "manifest.webmanifest",
+const VERSAO = "radar-v6";
+const CASCO = ["./", "index.html", "data.js", "tabela.js", "amortecedores.js", "cofap.js", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon.svg"];
 
 self.addEventListener("install", e => {

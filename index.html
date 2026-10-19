@@ -530,30 +530,75 @@ function cartaoOleoFiltros(d, erro, v, veic0, peca){
     <div class="links"><a target="_blank" rel="noopener" href="https://catalogo.tecfil.com.br/search/${q}">Abrir no catálogo Tecfil ↗</a><a target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent("óleo e filtros "+vn)}">Google</a></div></div>`;
 }
 
-// ---- Amortecedores (Monroe, Cofap) e kits batente/guarda-pó (Axios), dianteiros e traseiros, com e sem coxim
+// ---- Amortecedores (Cofap + Monroe) e kits batente/guarda-pó, dianteiros e traseiros, com e sem coxim
+// Fonte principal: "Catálogo Linha Leve Cofap" (cofap.js, carregado sob demanda). Axios e dados extras: amortecedores.js.
+let cofapPromise = null;
+function carregaCofap(){
+  if(window.COFAP) return Promise.resolve();
+  return cofapPromise ||= new Promise((ok, err) => {
+    const s = document.createElement("script"); s.src = "cofap.js"; s.onload = ok;
+    s.onerror = () => { cofapPromise = null; err(new Error("cofap.js")); };
+    document.head.appendChild(s);
+  });
+}
+const ALIAS_CAT = { VW:"VOLKSWAGEN", GM:"CHEVROLET", KIA:"KIA MOTORS", MERCEDES:"MERCEDES-BENZ", JAC:"JAC MOTORS", CITROEN:"CITROËN" };
+function marcaCatalogo(m){
+  const n = norm(m); if(!n) return "";
+  const todas = [...new Set([...(COFAP.amort||[]).map(r => r[0]), ...(COFAP.kits||[]).map(r => r[0])])];
+  const achada = todas.find(c => n.includes(norm(c)) || norm(c).includes(n));
+  if(achada) return achada;
+  for(const [k, v] of Object.entries(ALIAS_CAT)) if(new RegExp("(^|[^A-Z])"+k+"([^A-Z]|$)").test(n)) return v;
+  return null; // marca informada que não existe no catálogo
+}
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function casaVeiculo(r, v, marca, modelo){ // r = [marca, modelo, compl, de, até, ...]
+  if(marca === null || (marca && r[0] !== marca)) return false;
+  const cm = norm(r[1]); if(!cm || !new RegExp("(^|[^A-Z0-9])"+reEsc(cm)+"([^A-Z0-9]|$)").test(modelo)) return false;
+  if(v.ano && (v.ano < r[3] || (r[4] && v.ano > r[4]))) return false;
+  return true;
+}
 function cartaoAmortecedores(v){
-  const modelo = norm(v.modelo), marca0 = norm(v.marca), marca = ALIAS[marca0] || marca0;
-  const reg = (window.AMORT||[]).find(a =>
-    (!marca || marca.includes(norm(a.marca)) || norm(a.marca).includes(marca) || ALIAS[norm(a.marca)] === marca) &&
-    new RegExp(a.modelo).test(modelo) && (!v.ano || (v.ano >= a.anos[0] && v.ano <= a.anos[1])));
   const vn = `${v.marca} ${v.modelo} ${v.ano||""}`.trim();
+  const mLocal = norm(v.marca), mAlias = ALIAS[mLocal] || mLocal;
+  const reg = (window.AMORT||[]).find(a =>
+    (!mAlias || mAlias.includes(norm(a.marca)) || norm(a.marca).includes(mAlias) || ALIAS[norm(a.marca)] === mAlias) &&
+    new RegExp(a.modelo).test(norm(v.modelo)) && (!v.ano || (v.ano >= a.anos[0] && v.ano <= a.anos[1])));
   const go = t => `<a target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(t)}" style="font-size:.8rem">🔎</a>`;
-  const cel = (cod, busca) => cod
-    ? `<span class="cod">${esc(cod)}</span> <button class="copy" data-c="${esc(cod)}">copiar</button>`
-    : `<span class="sub" style="font-size:.8rem">não cadastrado</span> ${go(busca)}`;
-  const g = (m, k) => reg?.[m]?.[k] || "";
+  const copia = c => `<button class="copy" data-c="${esc(c)}">copiar</button>`;
+  const temCat = !!window.COFAP;
+  const marca = temCat ? marcaCatalogo(v.marca) : null, modelo = norm(v.modelo);
+  const am = temCat ? COFAP.amort.filter(r => casaVeiculo(r, v, marca, modelo)) : [];
+  const kt = temCat ? COFAP.kits.filter(r => casaVeiculo(r, v, marca, modelo)) : [];
+  const lado = (a, t) => am.filter(r => new RegExp("^"+t, "i").test(r[6]) && true);
+  const nota = r => { const x = [r[2], /Direito|Esquerdo/.test(r[6]) ? r[6].replace(/^\w+\s*/, "") : "", r[3] ? `${r[3]}${r[4] ? "–"+r[4] : "+"}` : ""].filter(Boolean).join(" · "); return x ? `<br><small class="sub">${esc(x)}</small>` : ""; };
+  const celCofap = t => { const l = lado(am, t); return l.length ? l.map(r => `<span class="cod">${esc(r[5])}</span> ${copia(r[5])}${nota(r)}`).join("<hr style='border:0;border-top:1px dashed var(--bd);margin:6px 0'>") : null; };
+  const celMonroe = t => {
+    const l = lado(am, t), cods = [...new Set(l.flatMap(r => (COFAP.xref?.[r[5]]?.[0]) || []))];
+    if(cods.length) return cods.map(c => `<span class="cod">${esc(c)}</span> ${copia(c)}`).join("<br>") + `<br><small class="sub">equivalente ao Cofap</small>`;
+    const loc = reg?.monroe?.[t === "Dianteiro" ? "dianteiro" : "traseiro"]; return loc ? `<span class="cod">${esc(loc)}</span> ${copia(loc)}<br><small class="sub">anúncios de lojas</small>` : null;
+  };
+  const kit = (t, tipo) => kt.filter(r => new RegExp("^"+t, "i").test(r[5 + 1]) && r[8] === tipo);
+  const celKit = (t, tipo) => { const l = kit(t, tipo); return l.length ? l.map(r => `<span class="cod">${esc(r[5])}</span> ${copia(r[5])}<br><small class="sub">${esc(r[7].replace(/\s+/g, " "))}${r[2] ? " · "+esc(r[2]) : ""}</small>`).join("<hr style='border:0;border-top:1px dashed var(--bd);margin:6px 0'>") : null; };
+  const nc = (t, busca) => `<span class="sub" style="font-size:.8rem">não cadastrado</span> ${go(busca)}`;
+  const axios = k => { const c = reg?.axios?.[k]; return c ? `<span class="cod">${esc(c)}</span> ${copia(c)}` : null; };
   const linhas = [
-    ["Amortecedor dianteiro", cel(g("monroe","dianteiro"), `amortecedor dianteiro Monroe ${vn} código`), cel(g("cofap","dianteiro"), `amortecedor dianteiro Cofap ${vn} código`), "—"],
-    ["Amortecedor traseiro",  cel(g("monroe","traseiro"),  `amortecedor traseiro Monroe ${vn} código`),  cel(g("cofap","traseiro"),  `amortecedor traseiro Cofap ${vn} código`),  "—"],
-    ["Kit dianteiro COM coxim (coxim + batente + guarda-pó)", "—", "—", cel(g("axios","dianteiroComCoxim"), `kit coxim batente guarda pó dianteiro Axios ${vn} código`)],
-    ["Kit dianteiro SEM coxim (batente + guarda-pó)",           "—", "—", cel(g("axios","dianteiroSemCoxim"), `kit batente guarda pó dianteiro Axios ${vn} sem coxim código`)],
-    ["Kit traseiro COM coxim",                                  "—", "—", cel(g("axios","traseiroComCoxim"),  `kit coxim batente guarda pó traseiro Axios ${vn} código`)],
-    ["Kit traseiro SEM coxim (batente + guarda-pó)",            "—", "—", cel(g("axios","traseiroSemCoxim"),  `kit batente guarda pó traseiro Axios ${vn} sem coxim código`)]
-  ].map(l => `<tr><td>${esc(l[0])}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3]}</td></tr>`).join("");
-  const aviso = reg ? `<p class="warn">Base local${reg.nota ? " ("+esc(reg.nota)+")" : ""}: confira a aplicação (ano, motor, lado) no catálogo do fabricante.</p>`
-    : `<p class="warn">Este veículo ainda não está em <code>amortecedores.js</code>. Consulte os catálogos abaixo (os links 🔎 pesquisam no Google) e cadastre os códigos para aparecerem aqui.</p>`;
+    ["Amortecedor dianteiro", celMonroe("Dianteiro") || nc(0, `amortecedor dianteiro Monroe ${vn} código`), celCofap("Dianteiro") || nc(0, `amortecedor dianteiro Cofap ${vn} código`), "—"],
+    ["Amortecedor traseiro",  celMonroe("Traseiro")  || nc(0, `amortecedor traseiro Monroe ${vn} código`),  celCofap("Traseiro")  || nc(0, `amortecedor traseiro Cofap ${vn} código`),  "—"],
+    ["Kit dianteiro COM coxim <small class='sub'>(batente + guarda-pó + coxim)</small>", "—", celKit("Dianteiro","TOP") || nc(0, `top kit suspensão dianteiro Cofap ${vn} código`), axios("dianteiroComCoxim") || nc(0, `kit coxim batente guarda pó dianteiro Axios ${vn} código`)],
+    ["Kit dianteiro SEM coxim <small class='sub'>(batente + guarda-pó)</small>", "—", celKit("Dianteiro","KIT") || nc(0, `kit suspensão dianteiro Cofap ${vn} código`), axios("dianteiroSemCoxim") || nc(0, `kit batente guarda pó dianteiro Axios ${vn} sem coxim código`)],
+    ["Kit traseiro COM coxim", "—", celKit("Traseiro","TOP") || nc(0, `top kit suspensão traseiro Cofap ${vn} código`), axios("traseiroComCoxim") || nc(0, `kit coxim batente guarda pó traseiro Axios ${vn} código`)],
+    ["Kit traseiro SEM coxim <small class='sub'>(batente + guarda-pó)</small>", "—", celKit("Traseiro","KIT") || nc(0, `kit suspensão traseiro Cofap ${vn} código`), axios("traseiroSemCoxim") || nc(0, `kit batente guarda pó traseiro Axios ${vn} sem coxim código`)]
+  ].map(l => `<tr><td>${l[0]}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3]}</td></tr>`).join("");
+  // outras equivalências (Nakata, KYB) do catálogo
+  const eq = [...new Map(am.map(r => [r[5], COFAP.xref?.[r[5]]])).entries()].filter(([, x]) => x && (x[1].length || x[2].length))
+    .map(([c, x]) => `<tr><td class="cod">${esc(c)}</td><td>${esc(x[1].join(" · ") || "—")}</td><td>${esc(x[2].join(" · ") || "—")}</td></tr>`).join("");
+  const outras = eq ? `<h4>Outras equivalências do catálogo</h4><table><tr><th>Cofap</th><th>Nakata</th><th>KYB</th></tr>${eq}</table>` : "";
+  const fonte = (am.length || kt.length) ? `<p class="warn">Fonte: Catálogo Linha Leve Cofap. O código Monroe vem da tabela "Cross Reference" do próprio catálogo. Confira ano, motor e lado (direito/esquerdo) antes de comprar.</p>`
+    : !temCat ? `<p class="warn">Não foi possível carregar o catálogo Cofap. Mostrando só a base local.</p>`
+    : `<p class="warn">Este veículo não aparece no catálogo Cofap Linha Leve${marca === null ? " (marca não encontrada)" : ""}. Use os links 🔎 ou cadastre em <code>amortecedores.js</code>.</p>`;
+  const extra = reg ? `<p class="warn">Base local${reg.nota ? " ("+esc(reg.nota)+")" : ""}.</p>` : "";
   return `<div class="card"><h3>Amortecedores e kits <span class="tag">${esc(vn)}</span></h3>
-    <table style="min-width:520px"><tr><th>Item</th><th>Monroe</th><th>Cofap</th><th>Axios</th></tr>${linhas}</table>${aviso}
+    <table style="min-width:560px"><tr><th>Item</th><th>Monroe</th><th>Cofap</th><th>Axios</th></tr>${linhas}</table>${fonte}${extra}${outras}
     <div class="links"><a target="_blank" rel="noopener" href="https://catalogo.drivbrasil.com.br/">Catálogo DRiV (Monroe/Axios) ↗</a><a target="_blank" rel="noopener" href="https://mmcofap.com.br/">Catálogo Cofap ↗</a></div></div>`;
 }
 
@@ -612,7 +657,11 @@ $("#f").addEventListener("submit", async e => {
   $("#veiculo").innerHTML = `<div class="veh"><span class="lbl" style="margin:0;width:100%">Veículo</span><b>${esc(veiculo.marca)} ${esc(veiculo.modelo)}</b>${veiculo.ano?`<span class="tag">${veiculo.ano}</span>`:""}${placaOk(placa)?`<span class="tag">${placa}</span>`:""}</div>`;
 
   if(!ehDesktop()) $("#veiculo").scrollIntoView({behavior:"smooth", block:"start"}); // celular: leva à lista de resultados
-  if(/AMORTEC|BATENTE|GUARDA PO|COXIM/.test(norm(txt))) return $("#res").innerHTML = cartaoAmortecedores(veiculo);
+  if(/AMORTEC|BATENTE|GUARDA PO|COXIM/.test(norm(txt))){
+    $("#res").innerHTML = carregando;
+    try{ await carregaCofap(); }catch{}
+    return $("#res").innerHTML = cartaoAmortecedores(veiculo);
+  }
   const pecas = achaPeca(txt);
   const veic0 = `${veiculo.modelo} ${veiculo.ano||""}`.trim();
   const filtroOuOleo = /FILTR|OLEO|LUBRIF|COMBUST|CABINE|AR /.test(norm(txt)+" ");

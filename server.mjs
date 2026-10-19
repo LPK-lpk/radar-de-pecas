@@ -27,7 +27,7 @@ http.createServer(async (req, res) => {
     } catch (e) { res.statusCode = 502; return res.end(JSON.stringify({ erro: e.message })); }
   }
   const arq = u.pathname === "/" ? "index.html" : normalize(u.pathname).replace(/^([/\\])+/, "");
-  if (!/^(index\.html|data\.js|tabela\.js|amortecedores\.js|sw\.js|manifest\.webmanifest|icons[/\\][\w-]+\.(png|svg))$/.test(arq)) { res.statusCode = 404; return res.end("não encontrado"); }
+  if (!/^(index\.html|data\.js|tabela\.js|amortecedores\.js|cofap\.js|sw\.js|manifest\.webmanifest|icons[/\\][\w-]+\.(png|svg))$/.test(arq)) { res.statusCode = 404; return res.end("não encontrado"); }
   try {
     res.setHeader("content-type", tipos[extname(arq)] || "text/plain");
     res.end(await readFile(join(raiz, arq)));
