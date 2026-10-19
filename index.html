@@ -143,6 +143,51 @@
     padding:9px 16px;border-radius:99px;font-size:.84rem;font-weight:600;opacity:0;pointer-events:none;transition:.22s;z-index:50}
   .toast.on{opacity:1;transform:translate(-50%,0)}
   .foot{font-size:.76rem;color:var(--mut);text-align:center;margin:18px 6px 0}
+  /* ===== comportamento: CELULAR (padrão) × COMPUTADOR (≥ 980px) ===== */
+  .brand{display:none}
+  .empty-state{display:none}
+  kbd{font:600 .72rem ui-monospace,Consolas,monospace;background:var(--surface2);border:1px solid var(--bd);border-bottom-width:2px;border-radius:6px;padding:1px 6px;color:var(--tx)}
+
+  @media(min-width:980px){
+    .appbar{display:none}
+    .foot{text-align:left}
+    /* barra lateral no lugar da barra inferior */
+    .tabbar{left:0;top:0;bottom:0;transform:none;width:248px;flex-direction:column;gap:4px;padding:22px 14px;border-radius:0;
+      border:0;border-right:1px solid var(--bd);background:var(--card);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+    .brand{display:flex;align-items:center;gap:12px;padding:2px 8px 22px}
+    .brand b{display:block;font-size:1.05rem;letter-spacing:-.02em}
+    .brand small{display:block;color:var(--mut);font-size:.74rem;margin-top:-2px}
+    .tab{width:100%;justify-content:flex-start;height:44px;padding:0 14px;border-radius:12px;font-size:.92rem}
+    .tab span{display:inline}
+    .tab:not(.on):hover{background:var(--surface2);color:var(--tx)}
+    main{max-width:none;margin:0 0 0 248px;padding:36px 48px 56px}
+    .view{max-width:1120px;margin:0 auto}
+    #v-ajustes,#v-ajuda{max-width:720px;margin:0}
+    .hero h1{font-size:2rem}
+    /* duas colunas: formulário fixo à esquerda, resultados à direita */
+    .buscar-grid{display:grid;grid-template-columns:400px minmax(0,1fr);gap:28px;align-items:start}
+    .col-form{position:sticky;top:28px}
+    .col-form .grid3{grid-template-columns:1fr}
+    .chips{flex-wrap:wrap;overflow:visible}
+    .card{padding:22px}
+    .card:hover{border-color:color-mix(in srgb,var(--bd) 60%,var(--tx))}
+    .empty-state{text-align:center;padding:72px 24px;border:1.5px dashed var(--bd);border-radius:var(--r);color:var(--mut)}
+    .empty-state svg{color:var(--mut);opacity:.7;margin-bottom:10px}
+    .empty-state h3{color:var(--tx);font-size:1.1rem;margin-bottom:6px}
+    .empty-state p{margin:6px 0}
+    #res:empty ~ .empty-state{display:block}
+    #veiculo:not(.hidden) ~ .empty-state{display:none}
+    .toast{bottom:28px}
+    input,select,.btn,.chip,.copy,.tab{transition:background .15s,border-color .15s,box-shadow .15s,color .15s}
+    .btn:hover{opacity:.9}.btn.ghost:hover{background:var(--surface2);opacity:1}
+    .chip:hover{background:var(--surface2)}
+    .copy:hover{background:var(--btn);color:var(--btn-tx);border-color:var(--btn)}
+    tr:hover td{background:color-mix(in srgb,var(--surface2) 55%,transparent)}
+  }
+  @media(min-width:980px) and (max-width:1180px){
+    .tabbar{width:204px} main{margin-left:204px;padding:30px 26px 48px}
+    .buscar-grid{grid-template-columns:330px minmax(0,1fr);gap:20px}
+  }
   @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -167,6 +212,7 @@
       <p>Escolha o veículo e a peça. Mostramos óleo, filtros e códigos das marcas mais usadas.</p>
     </div>
 
+    <div class="buscar-grid"><div class="col-form">
     <div class="card">
       <div class="step"><i>1</i><h3>Veículo</h3></div>
       <div class="seg" role="tablist" aria-label="Como informar o veículo">
@@ -198,10 +244,19 @@
         <button type="button" class="btn ghost" id="limpar">Limpar</button>
       </div>
     </form>
+    </div><!-- /col-form -->
 
-    <div id="msg" role="alert"></div>
-    <div id="veiculo" class="card hidden"></div>
-    <div id="res"></div>
+    <div class="col-res">
+      <div id="msg" role="alert"></div>
+      <div id="veiculo" class="card hidden"></div>
+      <div id="res" aria-live="polite"></div>
+      <div class="empty-state">
+        <svg width="40" height="40"><use href="#i-radar"/></svg>
+        <h3>Os resultados aparecem aqui</h3>
+        <p>Escolha o veículo e a peça à esquerda e clique em <b>Buscar</b>.</p>
+        <p class="sub"><kbd>/</kbd> foca o campo de peça · <kbd>Enter</kbd> busca · <kbd>Esc</kbd> limpa</p>
+      </div>
+    </div></div><!-- /buscar-grid -->
     <p class="foot">Códigos de referência cruzada são auxiliares. Confirme no catálogo do fabricante ou pelo chassi antes de comprar.</p>
   </section>
 
@@ -249,6 +304,7 @@
 </main>
 
 <nav class="tabbar" aria-label="Navegação">
+  <div class="brand"><div class="logo"><svg width="20" height="20"><use href="#i-radar"/></svg></div><div><b>Radar Peças</b><small>Códigos por veículo</small></div></div>
   <button class="tab on" data-view="buscar"><svg width="20" height="20"><use href="#i-search"/></svg><span>Buscar</span></button>
   <button class="tab" data-view="ajuda"><svg width="20" height="20"><use href="#i-info"/></svg><span>Ajuda</span></button>
   <button class="tab" data-view="ajustes"><svg width="20" height="20"><use href="#i-set"/></svg><span>Ajustes</span></button>
@@ -263,6 +319,7 @@ const $ = s => document.querySelector(s);
 const norm = s => (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().trim();
 let veiculo = null; // {marca, modelo, ano}
 let modo = "fipe";  // fipe | manual
+const ehDesktop = () => matchMedia("(min-width: 980px)").matches; // computador: 2 colunas + barra lateral; celular: 1 coluna + barra inferior
 
 // ---- navegação (app)
 function ir(v){
@@ -522,7 +579,7 @@ $("#f").addEventListener("submit", async e => {
       if(!v){
         campoVeiculo().forEach(s => $(s).classList.add("invalido"));
         $("#bp").href = "https://buscaplacas.com.br/?plate=" + placa;
-        $("#bp").scrollIntoView({block:"center"});
+        if(!ehDesktop()) $("#bp").scrollIntoView({block:"center"});
         return msg(`⚠️ A placa ${placa} não vira veículo sem uma API de placas (serviço pago). Passo a passo: 1) toque em "Descobrir veículo da placa" e veja marca/modelo/ano; 2) escolha o veículo na FIPE ou digite marca, modelo e ano (acima); 3) toque em Buscar de novo.`);
       }
       veiculo = v;
@@ -533,6 +590,7 @@ $("#f").addEventListener("submit", async e => {
   $("#veiculo").classList.remove("hidden");
   $("#veiculo").innerHTML = `<div class="veh"><span class="lbl" style="margin:0;width:100%">Veículo</span><b>${esc(veiculo.marca)} ${esc(veiculo.modelo)}</b>${veiculo.ano?`<span class="tag">${veiculo.ano}</span>`:""}${placaOk(placa)?`<span class="tag">${placa}</span>`:""}</div>`;
 
+  if(!ehDesktop()) $("#veiculo").scrollIntoView({behavior:"smooth", block:"start"}); // celular: leva à lista de resultados
   if(/AMORTEC|BATENTE|GUARDA PO|COXIM/.test(norm(txt))) return $("#res").innerHTML = cartaoAmortecedores(veiculo);
   const pecas = achaPeca(txt);
   const veic0 = `${veiculo.modelo} ${veiculo.ano||""}`.trim();
@@ -546,8 +604,7 @@ $("#f").addEventListener("submit", async e => {
     if(!pedeOleo) $("#res").innerHTML = vivo + cartaoTabela(veiculo);
   }
   if(pedeOleo){
-    $("#res").innerHTML = cartaoOleoFiltros(dados, erroVivo, veiculo, veic0, pecas.find(p => p.id === "oleo-motor"));
-    return $("#veiculo").scrollIntoView({behavior:"smooth", block:"start"});
+    return $("#res").innerHTML = cartaoOleoFiltros(dados, erroVivo, veiculo, veic0, pecas.find(p => p.id === "oleo-motor"));
   }
   vivo += filtroOuOleo ? cartaoTabela(veiculo) : "";
   if(!pecas.length) return $("#res").innerHTML = vivo || `<div class="card">Peça não encontrada na base.</div>`;
@@ -583,8 +640,15 @@ $("#limpar").onclick = () => {
   setModo("fipe"); veiculo = null; msg("");
   $("#res").innerHTML = ""; $("#veiculo").innerHTML = ""; $("#veiculo").classList.add("hidden");
   $("#bp").href = "https://buscaplacas.com.br/";
-  scrollTo({top:0, behavior:"smooth"});
+  if(ehDesktop()) $("#mMarca").focus(); else scrollTo({top:0, behavior:"smooth"});
 };
+// atalhos de teclado (computador)
+document.addEventListener("keydown", e => {
+  if(!ehDesktop() || !$("#v-buscar").classList.contains("on")) return;
+  const digitando = ["INPUT","SELECT","TEXTAREA"].includes(document.activeElement?.tagName);
+  if(e.key === "/" && !digitando){ e.preventDefault(); $("#peca").focus(); }
+  if(e.key === "Escape"){ $("#limpar").click(); document.activeElement?.blur(); }
+});
 document.addEventListener("click", e => {
   const b = e.target.closest?.(".copy"); if(!b) return;
   const c = b.dataset.c; navigator.clipboard?.writeText(c); toast("Copiado: " + c);

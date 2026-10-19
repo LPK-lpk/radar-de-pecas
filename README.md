@@ -39,3 +39,7 @@ Arquivos do app: `manifest.webmanifest`, `sw.js` (casco offline) e a pasta `icon
 
 ## Ponte Tecfil (já publicada)
 O app consulta o catálogo Tecfil sozinho pelo Worker `https://radar-tecfil.leonaldopet.workers.dev/` (código em `worker/`). Para republicar: `cd worker && npx wrangler deploy`.
+
+## Dois comportamentos (celular × computador)
+- **Celular (< 980 px):** uma coluna, barra de navegação inferior, rolagem automática até o resultado.
+- **Computador (≥ 980 px):** barra lateral, formulário fixo à esquerda e resultados à direita; atalhos `/` (foca a peça), `Enter` (busca) e `Esc` (limpa).
