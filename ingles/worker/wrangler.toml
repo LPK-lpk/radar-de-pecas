@@ -1,6 +1,0 @@
-name = "ingles-live"
-main = "index.js"
-compatibility_date = "2024-11-01"
-workers_dev = true
-
-# Chave da API (nunca no app):  npx wrangler secret put ANTHROPIC_API_KEY
